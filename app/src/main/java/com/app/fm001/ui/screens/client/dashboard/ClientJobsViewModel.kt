@@ -1,53 +1,54 @@
 package com.app.fm001.ui.screens.client.dashboard
 
+import JobPost
 import androidx.lifecycle.ViewModel
-import com.app.fm001.model.JobPost
+import androidx.lifecycle.viewModelScope
 import com.app.fm001.model.EventType
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import java.util.Date
 
 class ClientJobsViewModel : ViewModel() {
-    private val _myJobs = MutableStateFlow<List<JobPost>>(getDummyJobs())
-    val myJobs = _myJobs.asStateFlow()
+    private val db = FirebaseFirestore.getInstance()
+    private val userId = FirebaseAuth.getInstance().currentUser?.uid
 
-    private fun getDummyJobs(): List<JobPost> {
-        return listOf(
-            JobPost(
-                id = "1",
-                title = "Wedding Photography",
-                description = "Looking for a photographer for my beach wedding",
-                budget = 1500.0,
-                location = "Mombasa Beach Hotel",
-                eventDate = Date(2024, 7, 15),
-                eventType = EventType.WEDDING,
-                requirements = listOf(
-                    "5 years experience",
-                    "Own equipment",
-                    "Portfolio required"
-                ),
-                clientId = "current_user_id",
-                postedDate = Date(),
-                status = JobPost.Status.OPEN
-            ),
-            JobPost(
-                id = "2",
-                title = "Corporate Event",
-                description = "Annual company meeting photography needed",
-                budget = 800.0,
-                location = "Nairobi Business Center",
-                eventDate = Date(2024, 6, 20),
-                eventType = EventType.CORPORATE,
-                requirements = listOf(
-                    "Professional equipment",
-                    "Quick turnaround",
-                    "Previous corporate event experience"
-                ),
-                clientId = "current_user_id",
-                postedDate = Date(),
-                status = JobPost.Status.IN_PROGRESS
-            )
-        )
+    private val _myJobs = MutableStateFlow<List<JobPost>>(emptyList())
+    val myJobs: StateFlow<List<JobPost>> get() = _myJobs
+
+    fun fetchJobs() {
+        viewModelScope.launch {
+            if (userId != null) {
+                db.collection("jobs")
+                    .whereEqualTo("clientId", userId)
+                    .get()
+                    .addOnSuccessListener { documents ->
+                        val jobs = documents.mapNotNull { doc ->
+                            JobPost(
+                                id = doc.id,
+                                title = doc.getString("title") ?: "",
+                                description = doc.getString("description") ?: "",
+                                budget = doc.getDouble("budget") ?: 0.0,
+                                location = doc.getString("location") ?: "",
+                                eventDate = doc.getDate("eventDate") ?: Date(),
+                                eventType = EventType.valueOf(doc.getString("eventType") ?: "OTHER"),
+                                requirements = doc.get("requirements") as? List<String> ?: emptyList(),
+                                clientId = doc.getString("clientId") ?: "",
+                                clientName = doc.getString("clientName") ?: "",
+                                postedDate = doc.getDate("postedDate") ?: Date(),
+                                postedBy = doc.getString("postedBy") ?: "Unknown", // Added field
+                                status = JobPost.Status.valueOf(doc.getString("status") ?: "OPEN")
+                            )
+                        }
+                        _myJobs.value = jobs
+                    }
+                    .addOnFailureListener {
+                        // Handle error
+                    }
+            }
+        }
     }
 
     fun createJob(
@@ -59,24 +60,35 @@ class ClientJobsViewModel : ViewModel() {
         eventType: EventType,
         requirements: List<String>
     ) {
-        val newJob = JobPost(
-            id = generateJobId(),
-            title = title,
-            description = description,
-            budget = budget,
-            location = location,
-            eventDate = eventDate,
-            eventType = eventType,
-            requirements = requirements,
-            clientId = "current_user_id", // TODO: Replace with actual user ID
-            postedDate = Date(),
-            status = JobPost.Status.OPEN
-        )
-        
-        _myJobs.value = _myJobs.value + newJob
-    }
+        viewModelScope.launch {
+            val userId = FirebaseAuth.getInstance().currentUser?.uid
+            val userEmail = FirebaseAuth.getInstance().currentUser?.email ?: "Unknown"
 
-    private fun generateJobId(): String {
-        return "job_${System.currentTimeMillis()}"
+            if (userId != null) {
+                val job = hashMapOf(
+                    "title" to title,
+                    "description" to description,
+                    "budget" to budget,
+                    "location" to location,
+                    "eventDate" to eventDate,
+                    "eventType" to eventType.name,
+                    "requirements" to requirements,
+                    "clientId" to userId,
+                    "clientName" to "Client Name", // Replace with actual client name if available
+                    "postedDate" to Date(),
+                    "postedBy" to userEmail, // Added field
+                    "status" to JobPost.Status.OPEN.name
+                )
+
+                db.collection("jobs")
+                    .add(job)
+                    .addOnSuccessListener {
+                        fetchJobs() // Refresh the list after creating a new job
+                    }
+                    .addOnFailureListener {
+                        // Handle error
+                    }
+            }
+        }
     }
-} 
+}

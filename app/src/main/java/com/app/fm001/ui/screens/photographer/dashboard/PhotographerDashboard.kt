@@ -1,5 +1,6 @@
 package com.app.fm001.ui.screens.photographer.dashboard
 
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -20,7 +21,7 @@ import com.app.fm001.ui.screens.shared.messages.MessagesScreen
 @Composable
 fun PhotographerDashboard() {
     val navController = rememberNavController()
-    
+
     PhotographerDashboardContent(
         navController = navController
     )
@@ -83,11 +84,15 @@ private fun PhotographerDashboardContent(
                 )
             }
             composable(PhotographerScreen.Post.route) {
-                PostScreen()
+                PostScreen() // ✅ Pass the navController
             }
             composable(PhotographerScreen.Portfolio.route) {
-                PortfolioScreen()
+                PortfolioScreen(navController) // ✅ Pass the navController
             }
+            composable(PhotographerScreen.EditPortfolio.route) { EditPortfolioScreen() }
+
+
+
             composable(PhotographerScreen.Messages.route) {
                 MessagesScreen(
                     viewModel = viewModel(),
@@ -96,4 +101,4 @@ private fun PhotographerDashboardContent(
             }
         }
     }
-} 
+}

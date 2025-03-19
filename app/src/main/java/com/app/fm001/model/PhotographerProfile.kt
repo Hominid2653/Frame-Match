@@ -12,4 +12,30 @@ data class PhotographerProfile(
     val location: String = "",
     val hourlyRate: Double? = null,
     val availability: Boolean = true
-) 
+)
+data class PhotoPost(
+    val id: String = "",
+    val photographerId: String = "",
+    val images: List<String> = emptyList(),
+    val description: String = "",
+    val hashtags: List<String> = emptyList(),
+    val timestamp: Long = System.currentTimeMillis(),
+    val likes: Int = 0,
+    val comments: List<com.app.fm001.model.Comment> = emptyList(),
+    val isLiked: Boolean = false
+)
+
+
+data class Comment(
+    val id: String = "",
+    val userId: String = "",
+    val username: String = "",
+    val content: String = "",
+    val timestamp: Long = System.currentTimeMillis()
+)
+data class Post(
+    val id: String = "",
+    val imageBase64: String = "",
+    val description: String = "",
+    val likes: Int = 0 // Likes as an integer
+)

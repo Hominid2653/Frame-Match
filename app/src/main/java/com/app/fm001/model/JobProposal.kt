@@ -21,5 +21,7 @@ enum class ProposalStatus {
     OPEN,
     IN_PROGRESS,
     COMPLETED,
-    CANCELLED
+    CANCELLED,
+    PENDING
+
 } 

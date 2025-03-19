@@ -1,5 +1,3 @@
-package com.app.fm001.ui.screens.photographer.dashboard.components
-
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -9,11 +7,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.app.fm001.model.JobProposal
-import com.app.fm001.model.EventType
-import java.util.Date
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import com.app.fm001.model.ProposalStatus
+import com.app.fm001.model.EventType
+import com.app.fm001.ui.screens.photographer.dashboard.components.JobProposalCard
 
 @Composable
 fun JobFeed(
@@ -22,6 +19,7 @@ fun JobFeed(
     onMessageClick: (String) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    var selectedFilter by remember { mutableStateOf<EventType?>(null) }
 
     Column(
         modifier = Modifier
@@ -36,23 +34,28 @@ fun JobFeed(
                 .fillMaxWidth()
                 .padding(bottom = 16.dp),
             placeholder = { Text("Search jobs...") },
-            leadingIcon = { 
+            leadingIcon = {
                 Icon(Icons.Default.Search, contentDescription = null)
             },
             singleLine = true
         )
 
         // Filter chips
-        ScrollableFilterChips()
+        ScrollableFilterChips(selectedFilter) { selectedFilter = it }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Job list
+        // Filtered job list
+        val filteredProposals = proposals.filter {
+            (selectedFilter == null || it.eventType == selectedFilter) &&
+                    it.title.contains(searchQuery, ignoreCase = true)
+        }
+
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(16.dp)
         ) {
-            items(proposals) { proposal ->
+            items(filteredProposals) { proposal ->
                 JobProposalCard(
                     proposal = proposal,
                     onApplyClick = onApplyClick,
@@ -64,28 +67,34 @@ fun JobFeed(
 }
 
 @Composable
-private fun ScrollableFilterChips() {
-    val filters = remember {
-        listOf(
-            "All",
-            "Wedding",
-            "Birthday",
-            "Corporate",
-            "Graduation",
-            "Other"
-        )
-    }
-    var selectedFilter by remember { mutableStateOf("All") }
+private fun ScrollableFilterChips(selectedFilter: EventType?, onFilterSelected: (EventType?) -> Unit) {
+    val filters = EventType.values().toList()
 
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.padding(vertical = 8.dp)
     ) {
+        item {
+            FilterChip(
+                selected = selectedFilter == null,
+                onClick = { onFilterSelected(null) },
+                label = { Text("All") },
+                leadingIcon = if (selectedFilter == null) {
+                    {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                } else null
+            )
+        }
         items(filters) { filter ->
             FilterChip(
                 selected = selectedFilter == filter,
-                onClick = { selectedFilter = filter },
-                label = { Text(filter) },
+                onClick = { onFilterSelected(filter) },
+                label = { Text(filter.name) },
                 leadingIcon = if (selectedFilter == filter) {
                     {
                         Icon(
@@ -99,45 +108,3 @@ private fun ScrollableFilterChips() {
         }
     }
 }
-
-private fun getDummyProposals(): List<JobProposal> {
-    return listOf(
-        JobProposal(
-            id = "1",
-            title = "Wedding Photography Needed",
-            description = "Looking for an experienced photographer for a beach wedding",
-            budget = 1500.0,
-            location = "Mombasa Beach Hotel",
-            eventDate = Date(),
-            eventType = EventType.WEDDING,
-            requirements = listOf(
-                "5 years experience",
-                "Own equipment",
-                "Portfolio required",
-                "Full day coverage"
-            ),
-            clientId = "client_123",
-            clientName = "Sarah Johnson",
-            postedDate = Date(),
-            status = ProposalStatus.IN_PROGRESS
-        ),
-        JobProposal(
-            id = "2",
-            title = "Corporate Event Coverage",
-            description = "Annual company meeting and award ceremony",
-            budget = 800.0,
-            location = "Nairobi Business Center",
-            eventDate = Date(),
-            eventType = EventType.CORPORATE,
-            requirements = listOf(
-                "Professional equipment",
-                "Quick turnaround",
-                "Previous corporate experience"
-            ),
-            clientId = "client_456",
-            clientName = "Tech Corp Ltd",
-            postedDate = Date(),
-            status = ProposalStatus.IN_PROGRESS
-        )
-    )
-} 

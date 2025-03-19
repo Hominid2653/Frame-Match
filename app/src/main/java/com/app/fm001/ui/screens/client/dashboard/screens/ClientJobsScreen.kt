@@ -1,5 +1,6 @@
 package com.app.fm001.ui.screens.client.dashboard.screens
 
+import JobPost
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.app.fm001.model.JobPost
+import com.app.fm001.model.EventType
 import com.app.fm001.ui.screens.client.dashboard.ClientJobsViewModel
 import com.app.fm001.ui.screens.client.dashboard.components.CreateJobDialog
 import java.text.SimpleDateFormat
@@ -24,6 +25,11 @@ fun ClientJobsScreen(
 ) {
     var showCreateJobDialog by remember { mutableStateOf(false) }
     val myJobs by viewModel.myJobs.collectAsState()
+
+    // Fetch jobs when the screen is launched
+    LaunchedEffect(Unit) {
+        viewModel.fetchJobs()
+    }
 
     Column(
         modifier = Modifier
@@ -69,7 +75,7 @@ fun ClientJobsScreen(
                     budget = jobDetails.budget,
                     location = jobDetails.location,
                     eventDate = jobDetails.eventDate,
-                    eventType = jobDetails.eventType,
+                    eventType = EventType.valueOf(jobDetails.eventType.toString()),
                     requirements = jobDetails.requirements
                 )
                 showCreateJobDialog = false
@@ -112,13 +118,13 @@ private fun JobCard(job: JobPost) {
                     )
                 )
             }
-            
+
             Text(
                 text = job.description,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(vertical = 8.dp)
             )
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -132,13 +138,25 @@ private fun JobCard(job: JobPost) {
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
-            
+
             Text(
                 text = "Event Date: ${SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(job.eventDate)}",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 8.dp)
             )
-            
+
+            Text(
+                text = "Event Type: ${job.eventType.name}",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+
+            Text(
+                text = "Posted By: ${job.postedBy}", // Display the postedBy field
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+
             if (job.requirements.isNotEmpty()) {
                 Text(
                     text = "Requirements:",
@@ -155,4 +173,4 @@ private fun JobCard(job: JobPost) {
             }
         }
     }
-} 
+}

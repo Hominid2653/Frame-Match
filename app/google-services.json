@@ -1,0 +1,219 @@
+{
+  "project_info": {
+    "project_number": "939643688007",
+    "project_id": "friday-955d2",
+    "storage_bucket": "friday-955d2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:939643688007:android:9427382ca55ecdb2180d62",
+        "android_client_info": {
+          "package_name": "com.app.fm001"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoTLjbK1qsRAdP5kftT6yqWG_a_lUVqzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:939643688007:android:7f600d20093bca7b180d62",
+        "android_client_info": {
+          "package_name": "com.cars.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoTLjbK1qsRAdP5kftT6yqWG_a_lUVqzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:939643688007:android:db35ce5ef94e6ce6180d62",
+        "android_client_info": {
+          "package_name": "com.eme.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoTLjbK1qsRAdP5kftT6yqWG_a_lUVqzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:939643688007:android:a680d876948215d3180d62",
+        "android_client_info": {
+          "package_name": "com.emegency.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoTLjbK1qsRAdP5kftT6yqWG_a_lUVqzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:939643688007:android:180c5e334a7523ab180d62",
+        "android_client_info": {
+          "package_name": "com.emergency.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoTLjbK1qsRAdP5kftT6yqWG_a_lUVqzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:939643688007:android:a949a672c09da818180d62",
+        "android_client_info": {
+          "package_name": "com.example.fam"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoTLjbK1qsRAdP5kftT6yqWG_a_lUVqzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:939643688007:android:6f6781dfe98cfd18180d62",
+        "android_client_info": {
+          "package_name": "com.example.farmSystemInventory"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoTLjbK1qsRAdP5kftT6yqWG_a_lUVqzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:939643688007:android:c795a898d620b4d7180d62",
+        "android_client_info": {
+          "package_name": "com.example.fireconnect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoTLjbK1qsRAdP5kftT6yqWG_a_lUVqzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:939643688007:android:6da2838a920fc0cf180d62",
+        "android_client_info": {
+          "package_name": "com.fam.a"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoTLjbK1qsRAdP5kftT6yqWG_a_lUVqzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:939643688007:android:c86b7b4608292a0d180d62",
+        "android_client_info": {
+          "package_name": "com.fam.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoTLjbK1qsRAdP5kftT6yqWG_a_lUVqzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:939643688007:android:afe314b0cd8f98b0180d62",
+        "android_client_info": {
+          "package_name": "com.github.ibzgure.holyvoyage"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoTLjbK1qsRAdP5kftT6yqWG_a_lUVqzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

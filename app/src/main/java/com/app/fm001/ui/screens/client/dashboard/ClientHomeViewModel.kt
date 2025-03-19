@@ -1,8 +1,8 @@
 package com.app.fm001.ui.screens.client.dashboard
 
 import androidx.lifecycle.ViewModel
+import com.app.fm001.model.PhotoPost
 import com.app.fm001.model.PhotographerProfile
-import com.app.fm001.ui.screens.photographer.dashboard.PhotoPost
 import com.app.fm001.utils.random
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow

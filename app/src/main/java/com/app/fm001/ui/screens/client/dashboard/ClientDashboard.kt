@@ -56,8 +56,7 @@ fun ClientDashboard() {
             modifier = Modifier.padding(paddingValues)
         ) {
             composable(ClientScreen.Home.route) {
-                ClientHomeScreen()
-            }
+                ClientHomeScreen(navController)             }
             composable(ClientScreen.Search.route) {
                 SearchPhotographersScreen()
             }

@@ -1,6 +1,8 @@
 package com.app.fm001.ui.screens.photographer.dashboard
 
 import androidx.lifecycle.ViewModel
+import com.app.fm001.model.Comment
+import com.app.fm001.model.PhotoPost
 import com.app.fm001.model.PhotographerProfile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +25,10 @@ class PortfolioViewModel : ViewModel() {
 
     private val _posts = MutableStateFlow<List<PhotoPost>>(emptyList())
     val posts = _posts.asStateFlow()
+
+    init {
+        _posts.value = getDummyPosts()
+    }
 
     private fun getDummyPosts(): List<PhotoPost> {
         return List(15) { index ->
@@ -69,7 +75,8 @@ class PortfolioViewModel : ViewModel() {
                 id = UUID.randomUUID().toString(),
                 userId = "current_user", // TODO: Get from auth
                 username = "Current User", // TODO: Get from auth
-                content = content
+                content = content,
+                timestamp = System.currentTimeMillis()
             )
             currentPosts[index] = post.copy(
                 comments = post.comments + newComment
@@ -78,17 +85,3 @@ class PortfolioViewModel : ViewModel() {
         }
     }
 }
-
-data class PhotographerProfile(
-    val id: String,
-    val name: String,
-    val bio: String,
-    val profileImage: String,
-    val rating: Float,
-    val reviewCount: Int,
-    val verified: Boolean,
-    val specialties: List<String> = emptyList(),
-    val location: String = "",
-    val hourlyRate: Double? = null,
-    val availability: Boolean = true
-) 

@@ -1,166 +1,214 @@
 package com.app.fm001.ui.screens.client.dashboard.screens
 
-import androidx.compose.foundation.clickable
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.app.fm001.ui.screens.client.dashboard.ClientHomeViewModel
-import com.app.fm001.ui.screens.client.dashboard.FeedPost
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FirebaseFirestore
 
 @Composable
-fun ClientHomeScreen(
-    viewModel: ClientHomeViewModel = viewModel(),
-    onNavigateToPhotographer: (String) -> Unit = {}
-) {
-    val feedPosts by viewModel.feedPosts.collectAsState()
+fun ClientHomeScreen(navController: NavController) {
+    val db = FirebaseFirestore.getInstance()
+    val auth = FirebaseAuth.getInstance()
+    val currentUser = auth.currentUser
+    val posts = remember { mutableStateListOf<DocumentSnapshot>() }
+    var userProfileImage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        currentUser?.uid?.let { uid ->
+            db.collection("users").document(uid).get().addOnSuccessListener { document ->
+                userProfileImage = document.getString("profileImage")
+            }
+        }
+        db.collection("posts").orderBy("timestamp").addSnapshotListener { snapshots, e ->
+            if (e != null) return@addSnapshotListener
+            posts.clear()
+            snapshots?.forEach { document -> posts.add(document) }
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 8.dp)
     ) {
-        items(feedPosts) { feedPost ->
+        item {
+            ListItem(
+                headlineContent = {
+                    Text(
+                        text = currentUser?.email ?: "Guest",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                leadingContent = {
+                    AsyncImage(
+                        model = userProfileImage,
+                        contentDescription = "User Profile Image",
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                },
+                modifier = Modifier.padding(16.dp)
+            )
+        }
+
+        items(posts) { document ->
+            val post = document.data
+            val id = document.id
+            val description = post?.get("description") as? String ?: ""
+            val hashtags = post?.get("hashtags") as? List<String> ?: emptyList() // Corrected retrieval
+            val imageBase64 = post?.get("imageBase64") as? String ?: ""
+            val posterEmail = post?.get("email") as? String ?: "Unknown"
+            val likes = (post?.get("likes") as? Long)?.toInt() ?: 0
+            val likedBy = post?.get("likedBy") as? List<String> ?: emptyList()
+            val hasLiked = currentUser?.uid in likedBy
+
             FeedPostCard(
-                feedPost = feedPost,
-                onLike = { viewModel.likePost(feedPost.post.id) },
-                onPhotographerClick = { onNavigateToPhotographer(feedPost.photographer.id) }
+                id = id,
+                description = description,
+                hashtags = hashtags,  // Corrected to pass List<String>
+                imageBase64 = imageBase64,
+                posterEmail = posterEmail,
+                likes = likes,
+                hasLiked = hasLiked,
+                onLike = {
+                    if (!hasLiked && currentUser?.uid != null) {
+                        val updatedLikes = likes + 1
+                        val updatedLikedBy = likedBy + currentUser.uid
+                        db.collection("posts").document(id)
+                            .update(mapOf(
+                                "likes" to updatedLikes,
+                                "likedBy" to updatedLikedBy
+                            ))
+                    }
+                }
             )
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FeedPostCard(
-    feedPost: FeedPost,
-    onLike: () -> Unit,
-    onPhotographerClick: () -> Unit
+fun FeedPostCard(
+    id: String,
+    description: String,
+    hashtags: List<String>, // Corrected type
+    imageBase64: String,
+    posterEmail: String,
+    likes: Int,
+    hasLiked: Boolean,
+    onLike: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
     ) {
-        Column {
-            // Photographer header
-            ListItem(
-                headlineContent = { 
-                    Text(
-                        text = feedPost.photographer.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                supportingContent = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "${feedPost.photographer.rating}",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Icon(
-                            Icons.Default.Star,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        if (feedPost.photographer.verified) {
-                            Icon(
-                                Icons.Default.Verified,
-                                contentDescription = "Verified",
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                },
-                leadingContent = {
-                    AsyncImage(
-                        model = feedPost.photographer.profileImage,
-                        contentDescription = "Photographer profile picture",
+        Column(modifier = Modifier.padding(8.dp)) {
+
+            // Poster Email
+            Text(
+                text = "Posted by: $posterEmail",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+
+            // Post Image
+            imageBase64.takeIf { it.isNotEmpty() }?.let {
+                val bitmap = decodeBase64ToBitmap(it)
+                bitmap?.let {
+                    Image(
+                        bitmap = it.asImageBitmap(),
+                        contentDescription = "Post Image",
                         modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .clickable(onClick = onPhotographerClick),
+                            .fillMaxWidth()
+                            .aspectRatio(4f / 3f),
                         contentScale = ContentScale.Crop
                     )
-                },
-                modifier = Modifier.clickable(onClick = onPhotographerClick)
-            )
-
-            // Post image
-            AsyncImage(
-                model = feedPost.post.images.firstOrNull(),
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(4f/3f),
-                contentScale = ContentScale.Crop
-            )
-
-            // Interaction buttons
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    IconButton(onClick = onLike) {
-                        Icon(
-                            if (feedPost.post.isLiked) Icons.Filled.Favorite 
-                            else Icons.Filled.FavoriteBorder,
-                            contentDescription = "Like"
-                        )
-                    }
                 }
             }
 
-            // Like count
+            // Likes Count
             Text(
-                text = "${feedPost.post.likes} likes",
+                text = "$likes likes",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             )
 
-            // Description and hashtags
-            if (feedPost.post.description.isNotEmpty()) {
+            // Description
+            if (description.isNotEmpty()) {
                 Text(
-                    text = feedPost.post.description,
+                    text = description,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                 )
             }
 
-            // Hashtags
+            // Hashtags - Corrected to display properly
+            if (hashtags.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    hashtags.forEach { hashtag ->
+                        AssistChip(
+                            onClick = {},
+                            label = { Text("#$hashtag") } // Fixed to properly show hashtags
+                        )
+                    }
+                }
+            }
+
+            // Like Button
             Row(
                 modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-                    .padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.Start
             ) {
-                feedPost.post.hashtags.forEach { hashtag ->
-                    AssistChip(
-                        onClick = { },
-                        label = { Text("#$hashtag") }
+                IconButton(onClick = onLike) {
+                    Icon(
+                        if (hasLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = "Like"
                     )
                 }
             }
         }
     }
-} 
+}
+
+/**
+ * Decodes a Base64 string to a Bitmap.
+ */
+fun decodeBase64ToBitmap(base64Str: String): Bitmap? {
+    return try {
+        val decodedBytes = Base64.decode(base64Str, Base64.DEFAULT)
+        BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
+    } catch (e: Exception) {
+        null
+    }
+}

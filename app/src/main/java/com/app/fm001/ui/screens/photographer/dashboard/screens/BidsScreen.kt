@@ -9,19 +9,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.app.fm001.model.JobProposal
 import com.app.fm001.model.ProposalStatus
-import com.app.fm001.model.EventType
+import com.app.fm001.ui.screens.photographer.dashboard.JobViewModel
 import com.app.fm001.ui.screens.photographer.dashboard.components.JobProposalCard
-import java.util.Date
 
 @Composable
 fun BidsScreen(
+    viewModel: JobViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onNavigateToMessages: (String) -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("Active Bids", "Completed", "Cancelled")
 
+    LaunchedEffect(Unit) {
+        viewModel.fetchProposals()
+    }
+
+    val proposals by viewModel.proposals.collectAsState()
+
     Column(modifier = Modifier.fillMaxSize()) {
-        // Tab row for filtering bids by status
         ScrollableTabRow(
             selectedTabIndex = selectedTab,
             modifier = Modifier.fillMaxWidth()
@@ -35,16 +40,15 @@ fun BidsScreen(
             }
         }
 
-        // Content based on selected tab
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
             when (selectedTab) {
-                0 -> ActiveBids(onNavigateToMessages)
-                1 -> CompletedBids(onNavigateToMessages)
-                2 -> CancelledBids(onNavigateToMessages)
+                0 -> ActiveBids(proposals.filter { it.status == ProposalStatus.IN_PROGRESS }, viewModel, onNavigateToMessages)
+                1 -> CompletedBids(proposals.filter { it.status == ProposalStatus.COMPLETED }, onNavigateToMessages)
+                2 -> CancelledBids(proposals.filter { it.status == ProposalStatus.CANCELLED }, onNavigateToMessages)
             }
         }
     }
@@ -52,33 +56,38 @@ fun BidsScreen(
 
 @Composable
 private fun ActiveBids(
+    bids: List<JobProposal>,
+    viewModel: JobViewModel,
     onNavigateToMessages: (String) -> Unit
 ) {
-    val activeBids = remember { getDummyBids().filter { it.status == ProposalStatus.IN_PROGRESS } }
-    BidsList(bids = activeBids, onNavigateToMessages = onNavigateToMessages)
+    BidsList(bids = bids, viewModel = viewModel, onNavigateToMessages = onNavigateToMessages)
 }
 
 @Composable
 private fun CompletedBids(
+    bids: List<JobProposal>,
     onNavigateToMessages: (String) -> Unit
 ) {
-    val completedBids = remember { getDummyBids().filter { it.status == ProposalStatus.COMPLETED } }
-    BidsList(bids = completedBids, onNavigateToMessages = onNavigateToMessages)
+    BidsList(bids = bids, viewModel = null, onNavigateToMessages = onNavigateToMessages)
 }
 
 @Composable
 private fun CancelledBids(
+    bids: List<JobProposal>,
     onNavigateToMessages: (String) -> Unit
 ) {
-    val cancelledBids = remember { getDummyBids().filter { it.status == ProposalStatus.CANCELLED } }
-    BidsList(bids = cancelledBids, onNavigateToMessages = onNavigateToMessages)
+    BidsList(bids = bids, viewModel = null, onNavigateToMessages = onNavigateToMessages)
 }
 
 @Composable
 private fun BidsList(
     bids: List<JobProposal>,
+    viewModel: JobViewModel?,
     onNavigateToMessages: (String) -> Unit
 ) {
+    var showDialog by remember { mutableStateOf(false) }
+    var selectedBid by remember { mutableStateOf<JobProposal?>(null) }
+
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(vertical = 8.dp)
@@ -86,71 +95,48 @@ private fun BidsList(
         items(bids) { bid ->
             JobProposalCard(
                 proposal = bid,
-                onApplyClick = { /* Handle bid actions */ },
-                onMessageClick = { clientId -> 
+                onApplyClick = {
+                    selectedBid = bid
+                    showDialog = true
+                },
+                onMessageClick = { clientId ->
                     onNavigateToMessages(clientId)
                 }
             )
         }
     }
+
+    if (showDialog && selectedBid != null) {
+        ConfirmBidActionDialog(
+            bid = selectedBid!!,
+            onDismiss = { showDialog = false },
+            onConfirm = {
+                viewModel?.updateProposalStatus(selectedBid!!, ProposalStatus.PENDING)
+                showDialog = false
+            }
+        )
+    }
 }
 
-private fun getDummyBids(): List<JobProposal> {
-    return listOf(
-        JobProposal(
-            id = "1",
-            title = "Wedding Photography Needed",
-            description = "Looking for an experienced photographer for a beach wedding",
-            budget = 1500.0,
-            location = "Mombasa Beach Hotel",
-            eventDate = Date(),
-            eventType = EventType.WEDDING,
-            requirements = listOf(
-                "5 years experience",
-                "Own equipment",
-                "Portfolio required",
-                "Full day coverage"
-            ),
-            clientId = "client_123",
-            clientName = "John Doe",
-            postedDate = Date(),
-            status = ProposalStatus.IN_PROGRESS
-        ),
-        JobProposal(
-            id = "2",
-            title = "Corporate Event Coverage",
-            description = "Annual company meeting and award ceremony",
-            budget = 800.0,
-            location = "Nairobi Business Center",
-            eventDate = Date(),
-            eventType = EventType.CORPORATE,
-            requirements = listOf(
-                "Professional equipment",
-                "Quick turnaround",
-                "Previous corporate experience"
-            ),
-            clientId = "client_456",
-            clientName = "Tech Corp Ltd",
-            postedDate = Date(),
-            status = ProposalStatus.COMPLETED
-        ),
-        JobProposal(
-            id = "3",
-            title = "Birthday Party Photography",
-            description = "Sweet 16 birthday party photography needed",
-            budget = 500.0,
-            location = "Karen Country Club",
-            eventDate = Date(),
-            eventType = EventType.BIRTHDAY,
-            requirements = listOf(
-                "Experience with party photography",
-                "Good with kids",
-                "4 hours coverage"
-            ),
-            clientId = "client_789",
-            clientName = "John Smith",
-            postedDate = Date(),
-            status = ProposalStatus.CANCELLED
-        )
+@Composable
+private fun ConfirmBidActionDialog(
+    bid: JobProposal,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Confirm Action") },
+        text = { Text("Do you want to continue with the bid or cancel it?") },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Continue (Pending)")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
     )
-} 
+}
