@@ -94,6 +94,8 @@ dependencies {
     implementation(libs.identity.jvm)
     implementation(libs.androidx.foundation.android)
     implementation(libs.androidx.runner)
+    implementation(libs.androidx.foundation.android)
+    implementation(libs.androidx.foundation.android)
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

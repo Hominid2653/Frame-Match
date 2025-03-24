@@ -1,90 +1,151 @@
 package com.app.fm001.ui.screens.client.dashboard
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.app.fm001.model.PhotographerProfile
-import com.app.fm001.utils.random
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlin.random.Random
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class SearchPhotographersViewModel : ViewModel() {
+    private val db = FirebaseFirestore.getInstance()
+
+    // State for search query
     private val _searchQuery = MutableStateFlow("")
-    val searchQuery = _searchQuery.asStateFlow()
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    private val _selectedCategories = MutableStateFlow<Set<String>>(emptySet())
-    val selectedCategories = _selectedCategories.asStateFlow()
+    // State for selected categories
+    private val _selectedCategories = MutableStateFlow(setOf<String>())
+    val selectedCategories: StateFlow<Set<String>> = _selectedCategories.asStateFlow()
 
+    // State for selected location
     private val _selectedLocation = MutableStateFlow<String?>(null)
-    val selectedLocation = _selectedLocation.asStateFlow()
+    val selectedLocation: StateFlow<String?> = _selectedLocation.asStateFlow()
 
-    private val categories = listOf(
-        "Wedding", "Portrait", "Event", "Fashion", "Nature", "Architecture"
-    )
+    // State for all photographers (original list)
+    private val _allPhotographers = MutableStateFlow<List<PhotographerProfile>>(emptyList())
 
-    private val locations = listOf(
-        "Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret", "Thika", "Malindi"
-    )
+    // State for filtered photographers
+    private val _photographers = MutableStateFlow<List<PhotographerProfile>>(emptyList())
+    val photographers: StateFlow<List<PhotographerProfile>> = _photographers.asStateFlow()
 
-    private val _photographers = MutableStateFlow(getDummyPhotographers())
-    val photographers = _photographers.asStateFlow()
+    init {
+        Log.d("SearchPhotographersViewModel", "Initializing ViewModel")
+        fetchPhotographers()
+    }
 
+    // Fetch photographers from Firestore
+    private fun fetchPhotographers() {
+        Log.d("SearchPhotographersViewModel", "Fetching photographers from Firestore")
+        viewModelScope.launch {
+            db.collection("profiles")
+                .get()
+                .addOnSuccessListener { documents ->
+                    val photographerList = documents.mapNotNull { document ->
+                        PhotographerProfile(
+                            id = document.id,
+                            userId = document.getString("userId") ?: "",
+                            name = document.getString("name") ?: "No Name",
+                            bio = document.getString("bio") ?: "No Bio",
+                            profileImage = document.getString("profileImage") ?: "",
+                            rating = document.getDouble("rating")?.toFloat() ?: 0f,
+                            reviewCount = document.getLong("reviewCount")?.toInt() ?: 0,
+                            verified = document.getBoolean("verified") ?: false,
+                            specialties = document.get("specialties") as? List<String> ?: emptyList(),
+                            location = document.getString("location") ?: ""
+                        )
+                    }
+                    Log.d("SearchPhotographersViewModel", "Fetched ${photographerList.size} photographers")
+                    _allPhotographers.value = photographerList // Store the original list
+                    filterPhotographers() // Apply initial filtering
+                }
+                .addOnFailureListener {
+                    Log.e("SearchPhotographersViewModel", "Failed to fetch photographers: ${it.message}")
+                }
+        }
+    }
+
+    // Update search query
     fun onSearchQueryChange(query: String) {
+        Log.d("SearchPhotographersViewModel", "Search query changed to: $query")
         _searchQuery.value = query
         filterPhotographers()
     }
 
+    // Toggle category selection
     fun toggleCategory(category: String) {
-        _selectedCategories.value = _selectedCategories.value.toMutableSet().apply {
-            if (contains(category)) remove(category) else add(category)
+        Log.d("SearchPhotographersViewModel", "Toggling category: $category")
+        _selectedCategories.value = if (category in _selectedCategories.value) {
+            _selectedCategories.value - category
+        } else {
+            _selectedCategories.value + category
         }
         filterPhotographers()
     }
 
+    // Set selected location
     fun setLocation(location: String?) {
+        Log.d("SearchPhotographersViewModel", "Selected location: $location")
         _selectedLocation.value = location
         filterPhotographers()
     }
 
+    // Filter photographers based on search query, categories, and location
     private fun filterPhotographers() {
-        val query = _searchQuery.value.lowercase()
-        val categories = _selectedCategories.value
-        val location = _selectedLocation.value
-        
-        val filtered = getDummyPhotographers().filter { photographer ->
-            val matchesQuery = query.isEmpty() || 
-                photographer.name.lowercase().contains(query) ||
-                photographer.bio.lowercase().contains(query)
-            
-            val matchesCategories = categories.isEmpty() || 
-                photographer.specialties.any { it in categories }
-            
-            val matchesLocation = location == null || 
-                photographer.location == location
-            
-            matchesQuery && matchesCategories && matchesLocation
+        Log.d("SearchPhotographersViewModel", "Filtering photographers")
+        Log.d("SearchPhotographersViewModel", "Search query: ${_searchQuery.value}")
+        Log.d("SearchPhotographersViewModel", "Selected categories: ${_selectedCategories.value}")
+        Log.d("SearchPhotographersViewModel", "Selected location: ${_selectedLocation.value}")
+
+        val filtered = if (_searchQuery.value.isEmpty() && _selectedCategories.value.isEmpty() && _selectedLocation.value == null) {
+            // If no filters are applied, return the full list of photographers
+            Log.d("SearchPhotographersViewModel", "No filters applied, showing all photographers")
+            _allPhotographers.value
+        } else {
+            // Apply filters
+            _allPhotographers.value.filter { photographer ->
+                val matchesQuery = _searchQuery.value.isEmpty() ||
+                        photographer.name.contains(_searchQuery.value, ignoreCase = true) ||
+                        photographer.bio.contains(_searchQuery.value, ignoreCase = true)
+
+                // Convert specialties and selected categories to lowercase for case-insensitive comparison
+                val photographerSpecialties = photographer.specialties.map { it.lowercase() }
+                val selectedCategoriesLowercase = _selectedCategories.value.map { it.lowercase() }
+
+                val matchesCategories = _selectedCategories.value.isEmpty() ||
+                        photographerSpecialties.any { it in selectedCategoriesLowercase }
+
+                val matchesLocation = _selectedLocation.value == null ||
+                        photographer.location.contains(_selectedLocation.value!!, ignoreCase = true)
+
+                matchesQuery && matchesCategories && matchesLocation
+            }
         }
-        
+        Log.d("SearchPhotographersViewModel", "Filtered photographers count: ${filtered.size}")
         _photographers.value = filtered
     }
 
-    private fun getDummyPhotographers(): List<PhotographerProfile> {
-        return List(20) { index ->
-            val selectedCategories = categories.toList().shuffled().take(Random.nextInt(2, 4))
-            PhotographerProfile(
-                id = "photographer_$index",
-                name = "Photographer ${index + 1}",
-                bio = "Professional photographer specializing in ${selectedCategories.take(2).joinToString(" and ")}",
-                profileImage = "https://i.pravatar.cc/150?img=$index",
-                rating = (3.5f..5.0f).random(),
-                reviewCount = Random.nextInt(10, 201),
-                verified = index % 3 == 0,
-                specialties = selectedCategories,
-                location = locations[index % locations.size]
-            )
+    // Fetch a photographer by userId
+    fun getPhotographerById(userId: String): Flow<PhotographerProfile?> = flow {
+        try {
+            Log.d("SearchPhotographersViewModel", "Fetching photographer by userId: $userId")
+            val document = db.collection("profiles").document(userId).get().await()
+            val photographer = document.toObject(PhotographerProfile::class.java)
+            emit(photographer)
+        } catch (e: Exception) {
+            Log.e("SearchPhotographersViewModel", "Failed to fetch photographer: ${e.message}")
+            emit(null)
         }
     }
 
-    fun getAvailableLocations() = locations.toList()
-    
-    fun getAvailableCategories() = categories.toList()
-} 
+    // Get available locations (example implementation)
+    fun getAvailableLocations(): List<String> {
+        return listOf("Nairobi", "Nakuru", "Eldoret", "Kisumu", "Kapsabet")
+    }
+}

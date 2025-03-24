@@ -2,16 +2,18 @@ package com.app.fm001.model
 
 data class PhotographerProfile(
     val id: String,
+    val userId: String, // Required field
     val name: String,
     val bio: String,
-    val profileImage: String,
+    val profileImage: String, // Non-nullable String
     val rating: Float,
     val reviewCount: Int,
     val verified: Boolean,
     val specialties: List<String> = emptyList(),
     val location: String = "",
     val hourlyRate: Double? = null,
-    val availability: Boolean = true
+    val availability: Boolean = true,
+    val portfolio: List<String> = emptyList()
 )
 data class PhotoPost(
     val id: String = "",

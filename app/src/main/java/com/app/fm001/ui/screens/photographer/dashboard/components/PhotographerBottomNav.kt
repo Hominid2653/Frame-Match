@@ -1,5 +1,6 @@
 package com.app.fm001.ui.screens.photographer.dashboard.components
 
+import PhotographerScreen
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -7,7 +8,6 @@ import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
-import com.app.fm001.navigation.PhotographerScreen
 
 data class BottomNavItem(
     val screen: PhotographerScreen,

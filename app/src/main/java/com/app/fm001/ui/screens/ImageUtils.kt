@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
+import android.util.Log
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 
@@ -14,6 +15,15 @@ fun getBitmapFromUri(uri: Uri, context: Context): Bitmap? {
         BitmapFactory.decodeStream(inputStream)
     } catch (e: Exception) {
         e.printStackTrace()
+        null
+    }
+}
+fun String.toBitmap(): Bitmap? {
+    return try {
+        val decodedBytes = Base64.decode(this, Base64.DEFAULT)
+        BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
+    } catch (e: Exception) {
+        Log.e("Base64Decode", "Failed to decode Base64", e)
         null
     }
 }

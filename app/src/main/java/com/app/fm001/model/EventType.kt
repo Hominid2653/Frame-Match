@@ -9,5 +9,9 @@ enum class EventType {
     REAL_ESTATE,
     BIRTHDAY,
     GRADUATION,
+    NATURE,
+    STREET,
+    ARCHITECTURE,
+    FOOD,
     OTHER
 } 

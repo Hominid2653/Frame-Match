@@ -14,8 +14,11 @@ data class JobProposal(
     val clientId: String,
     val clientName: String,
     val postedDate: Date,
+    val photographerId: String,
     val status: ProposalStatus = ProposalStatus.OPEN
-)
+) {
+
+}
 
 enum class ProposalStatus {
     OPEN,

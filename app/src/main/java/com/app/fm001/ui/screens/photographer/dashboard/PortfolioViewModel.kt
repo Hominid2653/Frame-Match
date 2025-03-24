@@ -12,6 +12,8 @@ class PortfolioViewModel : ViewModel() {
     private val _photographerProfile = MutableStateFlow(
         PhotographerProfile(
             id = "1",
+            userId = "user_1", // Add a userId value
+
             name = "John Doe",
             bio = "Professional photographer specializing in weddings and events",
             profileImage = "https://i.pravatar.cc/150",

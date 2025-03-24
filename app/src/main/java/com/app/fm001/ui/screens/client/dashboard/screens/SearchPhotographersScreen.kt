@@ -16,6 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.app.fm001.model.PhotographerProfile
 import com.app.fm001.ui.screens.client.dashboard.SearchPhotographersViewModel
@@ -23,8 +24,9 @@ import com.app.fm001.ui.screens.client.dashboard.SearchPhotographersViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchPhotographersScreen(
-    viewModel: SearchPhotographersViewModel = viewModel(),
-    onNavigateToPhotographer: (String) -> Unit = {}
+    loggedInUserId: String,
+    onNavigateToMessages: (String, String) -> Unit, // Callback to navigate to the message screen
+    viewModel: SearchPhotographersViewModel = viewModel()
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedCategories by viewModel.selectedCategories.collectAsState()
@@ -59,7 +61,7 @@ fun SearchPhotographersScreen(
             FilterChip(
                 selected = selectedLocation != null,
                 onClick = { showLocationDialog = true },
-                label = { 
+                label = {
                     Text(selectedLocation ?: "All Locations")
                 },
                 leadingIcon = {
@@ -104,7 +106,10 @@ fun SearchPhotographersScreen(
             items(photographers) { photographer ->
                 PhotographerCard(
                     photographer = photographer,
-                    onClick = { onNavigateToPhotographer(photographer.id) }
+                    onClick = {
+                        // Navigate to MessagesScreen with logged-in user ID and photographer's user ID
+                        onNavigateToMessages(loggedInUserId, photographer.userId)
+                    }
                 )
             }
         }
@@ -114,8 +119,8 @@ fun SearchPhotographersScreen(
         LocationSelectionDialog(
             currentLocation = selectedLocation,
             locations = viewModel.getAvailableLocations(),
-            onLocationSelected = { 
-                viewModel.setLocation(it)
+            onLocationSelected = { location ->
+                viewModel.setLocation(location)
                 showLocationDialog = false
             },
             onDismiss = { showLocationDialog = false }
@@ -123,7 +128,6 @@ fun SearchPhotographersScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PhotographerCard(
     photographer: PhotographerProfile,
@@ -147,9 +151,9 @@ private fun PhotographerCard(
                     .clip(CircleShape),
                 contentScale = ContentScale.Crop
             )
-            
+
             Spacer(modifier = Modifier.width(16.dp))
-            
+
             Column(modifier = Modifier.weight(1f)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -168,13 +172,13 @@ private fun PhotographerCard(
                         )
                     }
                 }
-                
+
                 Text(
                     text = photographer.bio,
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 2
                 )
-                
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -240,4 +244,4 @@ private fun LocationSelectionDialog(
 
 private val categories = listOf(
     "Wedding", "Portrait", "Event", "Fashion", "Nature", "Architecture"
-) 
+)

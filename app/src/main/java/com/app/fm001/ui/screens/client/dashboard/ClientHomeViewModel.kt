@@ -16,6 +16,7 @@ class ClientHomeViewModel : ViewModel() {
         val photographers = List(5) { index ->
             PhotographerProfile(
                 id = "photographer_$index",
+                userId = "user_$index", // Add a userId value
                 name = "Photographer ${index + 1}",
                 bio = "Professional photographer specializing in various styles",
                 profileImage = "https://i.pravatar.cc/150?img=$index",

@@ -22,6 +22,7 @@ class JobViewModel : ViewModel() {
     private val _proposals = MutableStateFlow<List<JobProposal>>(emptyList())
     val proposals: StateFlow<List<JobProposal>> get() = _proposals
 
+    // Fetch all jobs
     fun fetchJobs() {
         viewModelScope.launch {
             db.collection("jobs")
@@ -40,6 +41,7 @@ class JobViewModel : ViewModel() {
                             clientId = doc.getString("clientId") ?: "",
                             clientName = doc.getString("clientName") ?: "",
                             postedDate = doc.getDate("postedDate") ?: Date(),
+                            photographerId = userId ?: "", // Use userId as photographerId
                             status = ProposalStatus.valueOf(doc.getString("status") ?: "OPEN")
                         )
                     }
@@ -50,6 +52,8 @@ class JobViewModel : ViewModel() {
                 }
         }
     }
+
+    // Update the status of a proposal
     fun updateProposalStatus(proposal: JobProposal, newStatus: ProposalStatus) {
         viewModelScope.launch {
             val proposalRef = db.collection("proposals").document(proposal.id)
@@ -68,7 +72,7 @@ class JobViewModel : ViewModel() {
         }
     }
 
-
+    // Apply for a job
     fun applyForJob(jobId: String) {
         viewModelScope.launch {
             if (userId != null) {
@@ -102,6 +106,7 @@ class JobViewModel : ViewModel() {
         }
     }
 
+    // Fetch proposals for the logged-in photographer
     fun fetchProposals() {
         viewModelScope.launch {
             if (userId != null) {
@@ -113,6 +118,7 @@ class JobViewModel : ViewModel() {
                             val jobId = doc.getString("jobId") ?: ""
                             val status = ProposalStatus.valueOf(doc.getString("status") ?: "PENDING")
                             val proposalDate = doc.getDate("proposalDate") ?: Date()
+                            val photographerId = doc.getString("photographerId") ?: userId ?: "" // Use userId as fallback
 
                             // Fetch the corresponding job details
                             db.collection("jobs")
@@ -132,6 +138,7 @@ class JobViewModel : ViewModel() {
                                             clientId = jobDoc.getString("clientId") ?: "",
                                             clientName = jobDoc.getString("clientName") ?: "",
                                             postedDate = jobDoc.getDate("postedDate") ?: Date(),
+                                            photographerId = photographerId, // Pass photographerId
                                             status = status
                                         )
                                         _proposals.value = _proposals.value + jobProposal
@@ -140,6 +147,7 @@ class JobViewModel : ViewModel() {
                                 .addOnFailureListener {
                                     // Handle error
                                 }
+                            null // Return null to satisfy mapNotNull
                         }
                     }
                     .addOnFailureListener {

@@ -1,5 +1,6 @@
 package com.app.fm001.ui.screens.photographer
 
+import PhotographerScreen
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
@@ -15,8 +16,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.app.fm001.navigation.PhotographerScreen
-
 data class BottomNavItem(
     val screen: PhotographerScreen,
     val icon: @Composable () -> Unit,
