@@ -73,13 +73,6 @@ fun ClientHomeScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        while (true) {
-            fetchPosts()
-            delay(1000)
-        }
-    }
-
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -115,22 +108,10 @@ fun ClientHomeScreen(
             val hashtags = post?.get("hashtags") as? List<String> ?: emptyList()
             val imageBase64 = post?.get("imageBase64") as? String ?: ""
             val posterEmail = post?.get("email") as? String ?: "Unknown"
+            val posterName = post?.get("userName") as? String ?: posterEmail
             val likes = (post?.get("likes") as? Long)?.toInt() ?: 0
             val likedBy = post?.get("likedBy") as? List<String> ?: emptyList()
             val hasLiked = currentUser?.uid in likedBy
-            var posterName by remember { mutableStateOf(userNamesCache[posterEmail] ?: posterEmail) }
-
-            LaunchedEffect(posterEmail) {
-                if (!userNamesCache.containsKey(posterEmail)) {
-                    db.collection("users").whereEqualTo("email", posterEmail).get()
-                        .addOnSuccessListener { snapshot ->
-                            val name = snapshot.documents.firstOrNull()?.getString("name")
-                                ?: posterEmail.substringBefore("@")
-                            userNamesCache[posterEmail] = name
-                            posterName = name
-                        }
-                }
-            }
 
             FeedPostCard(
                 id = id,
@@ -152,8 +133,7 @@ fun ClientHomeScreen(
                     }
                 },
                 onClick = {
-                    val route = "${ClientScreen.PortfolioProfile.route}/$posterEmail"
-                    navController.navigate(route)
+                    navController.navigate("portfolio/$posterEmail")
                 }
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -177,40 +157,19 @@ fun FeedPostCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .clickable { onClick() },
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
-            // User Info Row
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(8.dp)
-            ) {
-                Text(
-                    text = posterName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
+            // Poster name at the top
+            Text(
+                text = posterName,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
 
-                IconButton(
-                    onClick = onLike,
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = if (hasLiked) Icons.Filled.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "Like",
-                        tint = if (hasLiked) Color.Red else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                Text(
-                    text = likes.toString(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(end = 8.dp)
-                )
-            }
-
-            // Post Image with proper padding
+            // Post Image
             imageBase64.takeIf { it.isNotEmpty() }?.let {
                 val bitmap = decodeBase64ToBitmap(it)
                 bitmap?.let {
@@ -258,11 +217,33 @@ fun FeedPostCard(
                     }
                 }
             }
+
+            // Like button and count below hashtags
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                IconButton(
+                    onClick = onLike,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = if (hasLiked) Icons.Filled.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = "Like",
+                        tint = if (hasLiked) Color.Red else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Text(
+                    text = likes.toString(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            }
         }
     }
 }
 
-fun decodeBase64ToBitmap(base64String: String): Bitmap? {
+private fun decodeBase64ToBitmap(base64String: String): Bitmap? {
     return try {
         val decodedBytes = Base64.decode(base64String, Base64.DEFAULT)
         BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)

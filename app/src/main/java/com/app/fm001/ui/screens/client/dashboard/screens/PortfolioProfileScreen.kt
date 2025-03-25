@@ -49,20 +49,30 @@ fun PortfolioProfileScreen(navController: NavController, email: String) {
         println("Fetching profile for email: $email") // Debugging
 
         // Fetch photographer's profile
+        // Modified profile fetching section
         db.collection("profiles")
-            .whereEqualTo("email", email) // Filter by email
+            .whereEqualTo("email", email.lowercase()) // Case-insensitive match
             .get()
             .addOnSuccessListener { documents ->
                 isLoading = false
-                println("Profile documents: ${documents.size()}") // Debugging
+                println("FOUND ${documents.size()} PROFILE DOCUMENTS") // Debug
+                documents.forEach { doc ->
+                    println("DOCUMENT DATA: ${doc.data}") // Debug - print all fields
+                }
+
                 if (!documents.isEmpty) {
                     val profile = documents.documents[0]
                     name = profile.getString("name") ?: "No Name"
-                    bio = profile.getString("bio") ?: "No Bio"
-                    profileImage = profile.getString("profileImage")
-                    println("Profile fetched: $name, $bio, $profileImage") // Debugging
+                    bio = profile.getString("bio") ?:
+                            profile.getString("description") ?: // Try alternate field name
+                            "No Bio"
+                    profileImage = profile.getString("profileImage") ?:
+                            profile.getString("imageUrl") // Try alternate field name
+
+                    println("PROFILE DATA LOADED: $name, $bio, $profileImage") // Debug
                 } else {
-                    println("No profile found for email: $email") // Debugging
+                    println("PROFILE NOT FOUND FOR EMAIL: $email") // Debug
+                    Toast.makeText(context, "Profile not found", Toast.LENGTH_SHORT).show()
                 }
             }
             .addOnFailureListener {
