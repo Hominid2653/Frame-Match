@@ -2,13 +2,13 @@ package com.app.fm001.model
 
 import java.util.Date
 data class Message(
-    val id: String,
-    val senderId: String,
-    val senderEmail: String, // Add sender's email
-    val receiverId: String,
-    val receiverEmail: String, // Add receiver's email
-    val content: String,
-    val timestamp: Date
+    val id: String = "",  // Default value to avoid "No value passed for parameter 'id'"
+    val content: String = "",
+    val senderId: String = "",
+    val senderEmail: String = "",
+    val receiverId: String = "",
+    val receiverEmail: String = "",
+    val timestamp: Date = Date()  // Ensure timestamp is a Date object
 )
 
 enum class BidStatus {

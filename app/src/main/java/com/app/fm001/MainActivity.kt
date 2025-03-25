@@ -29,8 +29,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         FirebaseApp.initializeApp(this)
 
-
-
         setContent {
             FM001Theme {
                 Surface(
@@ -49,7 +47,10 @@ fun MainNavigation() {
     val navController = rememberNavController()
     val auth = FirebaseAuth.getInstance()
     val db = FirebaseFirestore.getInstance()
+
     val loggedInUserId = auth.currentUser?.uid ?: ""
+    val loggedInUserEmail = auth.currentUser?.email ?: ""
+
     NavHost(
         navController = navController,
         startDestination = Screen.Login.route
@@ -96,8 +97,7 @@ fun MainNavigation() {
                             }
                         }
                     }
-                },
-                 // Pass FirebaseFirestore instance
+                }
             )
         }
 
@@ -106,7 +106,10 @@ fun MainNavigation() {
         }
 
         composable(Screen.PhotographerHome.route) {
-            PhotographerDashboard(loggedInUserId = loggedInUserId) // Pass the loggedInUserId
+            PhotographerDashboard(
+                loggedInUserId = loggedInUserId,
+                loggedInUserEmail = loggedInUserEmail // Pass the loggedInUserEmail
+            )
         }
     }
 }

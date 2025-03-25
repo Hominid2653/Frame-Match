@@ -23,12 +23,10 @@ import com.app.fm001.ui.screens.auth.LoginScreen
 import com.app.fm001.ui.screens.auth.SignUpScreen
 import com.app.fm001.ui.screens.client.dashboard.ClientDashboard
 import com.app.fm001.ui.screens.client.dashboard.ClientProfileViewModel
-import com.app.fm001.ui.screens.client.dashboard.screens.ClientHomeScreen
 import com.app.fm001.ui.screens.client.dashboard.screens.PortfolioProfileScreen
 import com.app.fm001.ui.screens.client.dashboard.screens.SearchPhotographersScreen
 import com.app.fm001.ui.screens.photographer.dashboard.screens.EditPortfolioScreen
 import com.app.fm001.ui.screens.photographer.dashboard.screens.PortfolioScreen
-import com.app.fm001.ui.screens.photographer.dashboard.screens.PostScreen
 import com.app.fm001.ui.screens.photographer.dashboard.screens.UserPostsScreen
 import com.app.fm001.ui.screens.shared.messages.MessagesScreen
 import com.app.fm001.ui.screens.shared.messages.MessagesViewModel

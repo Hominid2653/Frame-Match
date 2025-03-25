@@ -1,11 +1,8 @@
 package com.app.fm001.ui.screens.shared.messages
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
@@ -14,34 +11,45 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
-import com.app.fm001.model.Conversation
 import com.app.fm001.model.Message
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
-import java.util.Locale
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MessagesScreen(
-    loggedInUserId: String, // Logged-in user's ID
-    senderId: String, // Sender's ID
-    receiverId: String, // Receiver's ID
-    onNavigateBack: () -> Unit, // Callback to navigate back
-    onNavigateToConversation: (String, String) -> Unit, // Callback to navigate to the conversation screen
+    senderId: String,  // ✅ Added senderId
+
+    receiverId: String,
+    onNavigateBack: () -> Unit, // Corrected: Now it's a function
     viewModel: MessagesViewModel = viewModel()
 ) {
-    // Fetch messages between the sender and receiver
-    LaunchedEffect(senderId, receiverId) {
-        viewModel.fetchMessages(senderId, receiverId)
+    val loggedInUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+    val senderEmail = remember { mutableStateOf<String?>(null) }
+    val receiverEmail = remember { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Fetch sender and receiver emails when the screen loads
+    LaunchedEffect(loggedInUserId, receiverId) {
+        coroutineScope.launch {
+            senderEmail.value = fetchUserEmail(loggedInUserId)
+            receiverEmail.value = fetchUserEmail(receiverId)
+        }
     }
 
-    // Observe messages from the ViewModel
-    val messages by viewModel.messages.collectAsState()
+    LaunchedEffect(receiverId) {
+        viewModel.fetchMessages(receiverId)
+    }
 
-    // Observe messageText from the ViewModel
+    val messages by viewModel.messages.collectAsState()
     val messageText by viewModel.messageText.collectAsState()
 
     Scaffold(
@@ -49,7 +57,7 @@ fun MessagesScreen(
             TopAppBar(
                 title = { Text("Messages") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = onNavigateBack) { // Fix: Function used correctly
                         Icon(Icons.Default.ArrowBack, "Back")
                     }
                 }
@@ -64,48 +72,53 @@ fun MessagesScreen(
             if (messages.isEmpty()) {
                 Text(
                     text = "No messages yet.",
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    textAlign = TextAlign.Center
                 )
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     items(messages) { message ->
                         MessageBubble(
                             message = message,
-                            isFromLoggedInUser = message.senderId == loggedInUserId,
-                            onClick = {
-                                // Navigate to the conversation screen with the sender's and receiver's IDs
-                                onNavigateToConversation(message.senderId, message.receiverId)
-                            }
+                            isFromLoggedInUser = message.senderId == loggedInUserId
                         )
                     }
                 }
             }
 
-            // Message input field
+            Spacer(modifier = Modifier.weight(0.1f)) // Ensures input field is visible
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(8.dp),
+                    .padding(8.dp)
+                    .imePadding() // Push up when keyboard appears
+                    .navigationBarsPadding(), // Avoid overlap with system navigation bar
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedTextField(
-                    value = messageText, // ✅ Use the observed value
+                    value = messageText,
                     onValueChange = { viewModel.updateMessageText(it) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp),
                     placeholder = { Text("Type a message...") }
                 )
 
                 IconButton(
                     onClick = {
-                        viewModel.sendMessage(
-                            senderId = loggedInUserId,
-                            senderEmail = "loggedInUserEmail@example.com", // Replace with actual email
-                            receiverId = receiverId,
-                            receiverEmail = "receiverEmail@example.com" // Replace with actual email
-                        )
+                        if (senderEmail.value != null && receiverEmail.value != null) {
+                            viewModel.sendMessage(
+                                receiverId,
+                                receiverEmail.value!!,
+                                senderEmail.value!!
+                            )
+                        }
                     }
                 ) {
                     Icon(Icons.Default.Send, "Send")
@@ -118,8 +131,7 @@ fun MessagesScreen(
 @Composable
 fun MessageBubble(
     message: Message,
-    isFromLoggedInUser: Boolean,
-    onClick: () -> Unit // Callback for clicking on the email
+    isFromLoggedInUser: Boolean
 ) {
     Box(
         modifier = Modifier
@@ -136,16 +148,8 @@ fun MessageBubble(
             Column(
                 modifier = Modifier.padding(16.dp)
             ) {
-                // Display the sender's email
-                Text(
-                    text = message.senderEmail,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.clickable(onClick = onClick) // Make the email clickable
-                )
-                Text(
-                    text = message.content,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Text(text = message.senderEmail, style = MaterialTheme.typography.bodySmall)
+                Text(text = message.content, style = MaterialTheme.typography.bodyMedium)
                 Text(
                     text = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(message.timestamp),
                     style = MaterialTheme.typography.bodySmall,
@@ -153,5 +157,22 @@ fun MessageBubble(
                 )
             }
         }
+    }
+}
+
+/**
+ * Fetches the email of a user given their user ID.
+ */
+suspend fun fetchUserEmail(userId: String): String? {
+    return try {
+        val snapshot = FirebaseFirestore.getInstance()
+            .collection("users")
+            .document(userId)
+            .get()
+            .await()
+
+        snapshot.getString("email") // Get the email field from Firestore
+    } catch (e: Exception) {
+        null
     }
 }

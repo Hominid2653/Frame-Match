@@ -6,7 +6,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -19,19 +19,21 @@ import com.app.fm001.ui.screens.photographer.dashboard.components.PhotographerBo
 import com.app.fm001.ui.screens.shared.messages.MessagesScreen
 
 @Composable
-fun PhotographerDashboard(loggedInUserId: String) { // Add loggedInUserId parameter
+fun PhotographerDashboard(loggedInUserId: String, loggedInUserEmail: String) {
     val navController = rememberNavController()
 
     PhotographerDashboardContent(
         navController = navController,
-        loggedInUserId = loggedInUserId // Pass loggedInUserId to the content
+        loggedInUserId = loggedInUserId,
+        loggedInUserEmail = loggedInUserEmail // Pass email correctly
     )
 }
 
 @Composable
 private fun PhotographerDashboardContent(
     navController: NavHostController,
-    loggedInUserId: String // Add loggedInUserId parameter
+    loggedInUserId: String,
+    loggedInUserEmail: String // Accept email here
 ) {
     val navItems = remember {
         listOf(
@@ -74,31 +76,29 @@ private fun PhotographerDashboardContent(
             composable(PhotographerScreen.Home.route) {
                 HomeScreen(
                     onNavigateToMessages = { clientId ->
-                        // Navigate to Messages screen with senderId and receiverId
                         navController.navigate("messages/$loggedInUserId/$clientId")
                     }
                 )
             }
             composable(PhotographerScreen.Bids.route) {
                 BidsScreen(
-                    loggedInUserId = loggedInUserId, // Pass the loggedInUserId to BidsScreen
-                    onNavigateToMessages = { photographerId, clientId ->
-                        // Navigate to Messages screen with senderId and receiverId
-                        navController.navigate("messages/$photographerId/$clientId")
+                    loggedInUserId = loggedInUserId,
+                    loggedInUserEmail = loggedInUserEmail, // Now correctly passed
+                    onNavigateToMessages = { photographerEmail, clientEmail ->
+                        navController.navigate("messages/$photographerEmail/$clientEmail")
                     }
                 )
             }
             composable(PhotographerScreen.Post.route) {
-                PostScreen() // ✅ Pass the navController if needed
+                PostScreen()
             }
+
             composable(PhotographerScreen.Portfolio.route) {
-                PortfolioScreen(navController) // ✅ Pass the navController
+                PortfolioScreen(navController)
             }
             composable(PhotographerScreen.EditPortfolio.route) {
                 EditPortfolioScreen()
             }
-
-            // Messages Screen with senderId and receiverId as arguments
             composable(
                 "messages/{senderId}/{receiverId}",
                 arguments = listOf(
@@ -108,16 +108,21 @@ private fun PhotographerDashboardContent(
             ) { backStackEntry ->
                 val senderId = backStackEntry.arguments?.getString("senderId") ?: ""
                 val receiverId = backStackEntry.arguments?.getString("receiverId") ?: ""
+
                 MessagesScreen(
-                    loggedInUserId = loggedInUserId, // Pass loggedInUserId
                     senderId = senderId,
                     receiverId = receiverId,
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToConversation = { sender, receiver ->
-                        navController.navigate("messages/$sender/$receiver")
-                    }
+                    onNavigateBack = { navController.popBackStack() } // ✅ Correct function type
                 )
             }
+
         }
     }
+}
+
+// Extract senderId and receiverId from the navigation arguments
+private fun extractIds(backStackEntry: NavBackStackEntry): Pair<String, String> {
+    val senderId = backStackEntry.arguments?.getString("senderId").orEmpty()
+    val receiverId = backStackEntry.arguments?.getString("receiverId").orEmpty()
+    return senderId to receiverId
 }

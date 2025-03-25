@@ -261,6 +261,7 @@ private fun EditProfileDialog(
     )
 }
 
+
 fun decodeBase64ToBitmapProfile(base64Str: String): Bitmap? {
     return try {
         val decodedBytes = Base64.decode(base64Str, Base64.DEFAULT)

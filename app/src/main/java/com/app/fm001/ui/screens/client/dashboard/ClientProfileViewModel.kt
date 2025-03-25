@@ -171,4 +171,15 @@ class ClientProfileViewModel : ViewModel() {
         )
         updateProfileSettings()
     }
+    fun logout(onLogoutComplete: () -> Unit) {
+        auth.signOut()
+
+        // Clear local state
+        _profile.value = getDummyProfile()
+        _selectedTags.value = emptySet()
+        _settings.value = _profile.value.settings
+
+        // Trigger UI update (navigate to login)
+        onLogoutComplete()
+    }
 }

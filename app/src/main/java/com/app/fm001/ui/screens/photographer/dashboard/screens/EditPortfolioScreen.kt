@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.app.fm001.utils.encodeImageToBase64
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -45,7 +46,7 @@ fun EditPortfolioScreen() {
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         selectedImage = uri
-        base64Image = uri?.let { encodeImageToBase64(it, context) }
+        base64Image = uri?.let { encodeImageToBase64(it, context) }.toString()
     }
 
     Column(

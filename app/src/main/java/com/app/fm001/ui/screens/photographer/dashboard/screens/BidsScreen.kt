@@ -21,15 +21,15 @@ import com.app.fm001.ui.screens.photographer.dashboard.components.JobProposalCar
 import com.app.fm001.ui.screens.shared.messages.MessagesViewModel
 import java.util.Locale
 
-
 @Composable
 fun BidsScreen(
     loggedInUserId: String, // Logged-in photographer's ID
+    loggedInUserEmail: String, // Logged-in photographer's Email
     viewModel: JobViewModel = viewModel(),
     onNavigateToMessages: (String, String) -> Unit // Callback to navigate to the message screen
 ) {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Active Bids", "Completed", "Messages") // Rename "Cancelled" to "Messages"
+    val tabs = listOf("Active Bids", "Completed", "Messages") // Renamed "Cancelled" to "Messages"
 
     LaunchedEffect(Unit) {
         viewModel.fetchProposals()
@@ -59,7 +59,7 @@ fun BidsScreen(
             when (selectedTab) {
                 0 -> ActiveBids(proposals.filter { it.status == ProposalStatus.IN_PROGRESS }, viewModel, onNavigateToMessages)
                 1 -> CompletedBids(proposals.filter { it.status == ProposalStatus.COMPLETED }, onNavigateToMessages)
-                2 -> Messages(loggedInUserId, onNavigateToMessages) // Use the new Messages composable
+                2 -> Messages(loggedInUserId, loggedInUserEmail, onNavigateToMessages) // Pass dynamic email here
             }
         }
     }
@@ -85,35 +85,32 @@ private fun CompletedBids(
 @Composable
 private fun Messages(
     loggedInUserId: String, // Logged-in photographer's ID
+    loggedInUserEmail: String, // Logged-in photographer's Email
     onNavigateToMessages: (String, String) -> Unit // Callback to navigate to the message screen
 ) {
     val viewModel: MessagesViewModel = viewModel()
-    val conversations by viewModel.conversations.collectAsState()
+    val messages by viewModel.messages.collectAsState()
 
-    // Fetch conversations when the screen is launched
-    LaunchedEffect(loggedInUserId) {
-        viewModel.fetchConversations(loggedInUserId)
-    }
+    val filteredMessages = messages.filter { it.receiverId == loggedInUserId }
 
     Column {
-        // Add a section for messages
         Text(
             text = "Messages",
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(16.dp)
         )
 
-        // Display the list of conversations
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            items(conversations) { conversation ->
-                ConversationItem(
-                    conversation = conversation,
+            items(filteredMessages) { message ->
+                MessageItem(
+                    senderEmail = message.senderEmail,
+                    lastMessage = message.content,
+                    timestamp = message.timestamp.toString(),
                     onClick = {
-                        // Navigate to the message screen with the logged-in user's ID and the other user's ID
-                        onNavigateToMessages(loggedInUserId, conversation.otherUserId)
+                        onNavigateToMessages(loggedInUserEmail, message.senderEmail)
                     }
                 )
             }
@@ -122,8 +119,10 @@ private fun Messages(
 }
 
 @Composable
-private fun ConversationItem(
-    conversation: Conversation, // Correct parameter type
+private fun MessageItem(
+    senderEmail: String,
+    lastMessage: String,
+    timestamp: String,
     onClick: () -> Unit
 ) {
     Card(
@@ -140,11 +139,11 @@ private fun ConversationItem(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "User ${conversation.otherUserId}", // Replace with the actual user's name
+                    text = senderEmail,
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
-                    text = conversation.lastMessage,
+                    text = lastMessage,
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -152,12 +151,13 @@ private fun ConversationItem(
             }
 
             Text(
-                text = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(conversation.timestamp),
+                text = timestamp,
                 style = MaterialTheme.typography.bodySmall
             )
         }
     }
 }
+
 @Composable
 private fun BidsList(
     bids: List<JobProposal>,
@@ -179,7 +179,6 @@ private fun BidsList(
                     showDialog = true
                 },
                 onMessageClick = { clientId ->
-                    // Use the correct field for the photographer's ID
                     onNavigateToMessages(bid.photographerId, clientId)
                 }
             )

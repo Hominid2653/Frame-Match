@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.app.fm001.utils.encodeImageToBase64
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.io.ByteArrayOutputStream
@@ -39,6 +40,7 @@ fun PostScreen() {
     var selectedImage by remember { mutableStateOf<Uri?>(null) }
     var base64Image by remember { mutableStateOf<String?>(null) }
     var isPosting by remember { mutableStateOf(false) }
+    var userName by remember { mutableStateOf("Loading...") }
 
     val context = LocalContext.current
     val db = FirebaseFirestore.getInstance()
@@ -46,9 +48,13 @@ fun PostScreen() {
     val userId = user?.uid
     val userEmail = user?.email
 
+    LaunchedEffect(userId) {
+        userId?.let { fetchUserName(it) { name -> userName = name } }
+    }
+
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         selectedImage = uri
-        base64Image = uri?.let { encodeImageToBase64(it, context) }
+        base64Image = uri?.let { encodeImageToBase64(it, context) }.toString()
     }
 
     Column(
@@ -57,6 +63,9 @@ fun PostScreen() {
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
+        Text("Posting as: $userName", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -69,23 +78,12 @@ fun PostScreen() {
                 contentAlignment = Alignment.Center
             ) {
                 if (selectedImage == null) {
-                    Icon(
-                        Icons.Default.AddPhotoAlternate,
-                        contentDescription = "Add photos",
-                        modifier = Modifier.size(48.dp)
-                    )
+                    Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Add photos", modifier = Modifier.size(48.dp))
                     Text("Add Photo", style = MaterialTheme.typography.bodyLarge)
                 } else {
-                    AsyncImage(
-                        model = selectedImage,
-                        contentDescription = "Selected Image",
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    AsyncImage(model = selectedImage, contentDescription = "Selected Image", modifier = Modifier.fillMaxSize())
                     IconButton(
-                        onClick = {
-                            selectedImage = null
-                            base64Image = null
-                        },
+                        onClick = { selectedImage = null; base64Image = null },
                         modifier = Modifier.align(Alignment.TopEnd)
                     ) {
                         Icon(Icons.Default.Close, contentDescription = "Remove Image", tint = MaterialTheme.colorScheme.error)
@@ -107,11 +105,8 @@ fun PostScreen() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Hashtags Section
         Text("Select Hashtags", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
-
         val availableHashtags = listOf("Wedding", "Portrait", "Nature", "Street", "Fashion", "Event", "Sports", "Architecture", "Food", "Travel")
-
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -123,11 +118,7 @@ fun PostScreen() {
                 FilterChip(
                     selected = selectedHashtags.contains(hashtag),
                     onClick = {
-                        selectedHashtags = if (selectedHashtags.contains(hashtag)) {
-                            selectedHashtags - hashtag
-                        } else {
-                            selectedHashtags + hashtag
-                        }
+                        selectedHashtags = if (selectedHashtags.contains(hashtag)) selectedHashtags - hashtag else selectedHashtags + hashtag
                     },
                     label = { Text("#$hashtag") }
                 )
@@ -146,24 +137,20 @@ fun PostScreen() {
                     Toast.makeText(context, "Please select an image", Toast.LENGTH_SHORT).show()
                     return@Button
                 }
-
                 isPosting = true
-
                 val post = hashMapOf(
                     "userId" to userId,
                     "email" to userEmail,
+                    "userName" to userName,
                     "imageBase64" to base64Image,
                     "description" to description,
                     "hashtags" to selectedHashtags.toList(),
                     "likes" to 0,
                     "timestamp" to System.currentTimeMillis()
                 )
-
                 db.collection("posts").add(post)
                     .addOnSuccessListener {
                         Toast.makeText(context, "Post uploaded!", Toast.LENGTH_SHORT).show()
-
-                        // Reset all fields instead of navigating away
                         description = ""
                         selectedHashtags = setOf()
                         selectedImage = null
@@ -178,10 +165,8 @@ fun PostScreen() {
             modifier = Modifier.fillMaxWidth(),
             enabled = !isPosting
         ) {
-            if (isPosting) {
-                CircularProgressIndicator(modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-            } else {
+            if (isPosting) CircularProgressIndicator(modifier = Modifier.size(18.dp))
+            else {
                 Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Post")
@@ -190,24 +175,19 @@ fun PostScreen() {
     }
 }
 
-fun encodeImageToBase64(uri: Uri, context: android.content.Context): String? {
-    return try {
-        val bitmap = getBitmapFromUri(uri, context)
-        val outputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 60, outputStream)
-        val byteArray = outputStream.toByteArray()
-        Base64.encodeToString(byteArray, Base64.DEFAULT)
-    } catch (e: Exception) {
-        null
-    }
-}
-
-fun getBitmapFromUri(uri: Uri, context: android.content.Context): Bitmap {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        val source = ImageDecoder.createSource(context.contentResolver, uri)
-        ImageDecoder.decodeBitmap(source)
-    } else {
-        @Suppress("DEPRECATION")
-        android.provider.MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
-    }
+fun fetchUserName(userId: String, onResult: (String) -> Unit) {
+    FirebaseFirestore.getInstance().collection("profiles")
+        .whereEqualTo("userId", userId)
+        .get()
+        .addOnSuccessListener { documents ->
+            if (!documents.isEmpty) {
+                val name = documents.documents[0].getString("name") ?: "Unknown"
+                onResult(name)
+            } else {
+                onResult("Unknown")
+            }
+        }
+        .addOnFailureListener {
+            onResult("Unknown")
+        }
 }
