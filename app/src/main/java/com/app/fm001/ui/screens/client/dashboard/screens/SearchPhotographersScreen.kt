@@ -242,6 +242,7 @@ private fun LocationSelectionDialog(
     )
 }
 
+
 private val categories = listOf(
     "Wedding", "Portrait", "Event", "Fashion", "Nature", "Architecture"
 )

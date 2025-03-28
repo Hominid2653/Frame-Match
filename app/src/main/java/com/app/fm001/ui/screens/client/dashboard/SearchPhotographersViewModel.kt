@@ -57,16 +57,23 @@ class SearchPhotographersViewModel : ViewModel() {
                             rating = document.getDouble("rating")?.toFloat() ?: 0f,
                             reviewCount = document.getLong("reviewCount")?.toInt() ?: 0,
                             verified = document.getBoolean("verified") ?: false,
-                            specialties = document.get("specialties") as? List<String> ?: emptyList(),
+                            specialties = document.get("specialties") as? List<String>
+                                ?: emptyList(),
                             location = document.getString("location") ?: ""
                         )
                     }
-                    Log.d("SearchPhotographersViewModel", "Fetched ${photographerList.size} photographers")
+                    Log.d(
+                        "SearchPhotographersViewModel",
+                        "Fetched ${photographerList.size} photographers"
+                    )
                     _allPhotographers.value = photographerList // Store the original list
                     filterPhotographers() // Apply initial filtering
                 }
                 .addOnFailureListener {
-                    Log.e("SearchPhotographersViewModel", "Failed to fetch photographers: ${it.message}")
+                    Log.e(
+                        "SearchPhotographersViewModel",
+                        "Failed to fetch photographers: ${it.message}"
+                    )
                 }
         }
     }
@@ -103,30 +110,38 @@ class SearchPhotographersViewModel : ViewModel() {
         Log.d("SearchPhotographersViewModel", "Selected categories: ${_selectedCategories.value}")
         Log.d("SearchPhotographersViewModel", "Selected location: ${_selectedLocation.value}")
 
-        val filtered = if (_searchQuery.value.isEmpty() && _selectedCategories.value.isEmpty() && _selectedLocation.value == null) {
-            // If no filters are applied, return the full list of photographers
-            Log.d("SearchPhotographersViewModel", "No filters applied, showing all photographers")
-            _allPhotographers.value
-        } else {
-            // Apply filters
-            _allPhotographers.value.filter { photographer ->
-                val matchesQuery = _searchQuery.value.isEmpty() ||
-                        photographer.name.contains(_searchQuery.value, ignoreCase = true) ||
-                        photographer.bio.contains(_searchQuery.value, ignoreCase = true)
+        val filtered =
+            if (_searchQuery.value.isEmpty() && _selectedCategories.value.isEmpty() && _selectedLocation.value == null) {
+                // If no filters are applied, return the full list of photographers
+                Log.d(
+                    "SearchPhotographersViewModel",
+                    "No filters applied, showing all photographers"
+                )
+                _allPhotographers.value
+            } else {
+                // Apply filters
+                _allPhotographers.value.filter { photographer ->
+                    val matchesQuery = _searchQuery.value.isEmpty() ||
+                            photographer.name.contains(_searchQuery.value, ignoreCase = true) ||
+                            photographer.bio.contains(_searchQuery.value, ignoreCase = true)
 
-                // Convert specialties and selected categories to lowercase for case-insensitive comparison
-                val photographerSpecialties = photographer.specialties.map { it.lowercase() }
-                val selectedCategoriesLowercase = _selectedCategories.value.map { it.lowercase() }
+                    // Convert specialties and selected categories to lowercase for case-insensitive comparison
+                    val photographerSpecialties = photographer.specialties.map { it.lowercase() }
+                    val selectedCategoriesLowercase =
+                        _selectedCategories.value.map { it.lowercase() }
 
-                val matchesCategories = _selectedCategories.value.isEmpty() ||
-                        photographerSpecialties.any { it in selectedCategoriesLowercase }
+                    val matchesCategories = _selectedCategories.value.isEmpty() ||
+                            photographerSpecialties.any { it in selectedCategoriesLowercase }
 
-                val matchesLocation = _selectedLocation.value == null ||
-                        photographer.location.contains(_selectedLocation.value!!, ignoreCase = true)
+                    val matchesLocation = _selectedLocation.value == null ||
+                            photographer.location.contains(
+                                _selectedLocation.value!!,
+                                ignoreCase = true
+                            )
 
-                matchesQuery && matchesCategories && matchesLocation
+                    matchesQuery && matchesCategories && matchesLocation
+                }
             }
-        }
         Log.d("SearchPhotographersViewModel", "Filtered photographers count: ${filtered.size}")
         _photographers.value = filtered
     }

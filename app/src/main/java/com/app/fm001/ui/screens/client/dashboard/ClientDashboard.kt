@@ -17,6 +17,8 @@ import com.app.fm001.ui.screens.client.dashboard.components.BottomNavItem
 import com.app.fm001.ui.screens.client.dashboard.screens.*
 import com.app.fm001.ui.screens.shared.messages.MessagesScreen
 
+
+
 @Composable
 fun ClientDashboard(loggedInUserId: String) {
     val navController = rememberNavController()
@@ -38,6 +40,11 @@ fun ClientDashboard(loggedInUserId: String) {
                         label = "Find"
                     ),
                     BottomNavItem(
+                        screen = ClientScreen.Messages,  // Added Messages button
+                        icon = { Icon(Icons.Default.Message, contentDescription = null) },
+                        label = "Messages"
+                    ),
+                    BottomNavItem(
                         screen = ClientScreen.Jobs,
                         icon = { Icon(Icons.Default.WorkHistory, contentDescription = null) },
                         label = "My Jobs"
@@ -56,15 +63,12 @@ fun ClientDashboard(loggedInUserId: String) {
             startDestination = ClientScreen.Home.route,
             modifier = Modifier.padding(paddingValues)
         ) {
-            // ✅ Home Screen
+            // Home Screen
             composable(ClientScreen.Home.route) {
                 ClientHomeScreen(navController, viewModel())
             }
 
-
-
-
-            // ✅ Search Screen - Navigates to Messages
+            // Search Screen
             composable(ClientScreen.Search.route) {
                 SearchPhotographersScreen(
                     loggedInUserId = loggedInUserId,
@@ -73,18 +77,29 @@ fun ClientDashboard(loggedInUserId: String) {
                     }
                 )
             }
+
+            // Messages Screen (shows photographers you've messaged)
+            composable(ClientScreen.Messages.route) {
+                MessagePhotographersScreen(
+                    loggedInUserId = loggedInUserId,
+                    loggedInUserEmail = "", // Pass actual email if needed
+                    onNavigateToMessages = { senderId, receiverId ->
+                        navController.navigate("client_messages/$senderId/$receiverId")
+                    }
+                )
+            }
+
             composable("portfolio/{email}") { backStackEntry ->
                 val email = backStackEntry.arguments?.getString("email") ?: ""
                 PortfolioProfileScreen(navController, email)
             }
 
-
-            // ✅ Jobs Screen
+            // Jobs Screen
             composable(ClientScreen.Jobs.route) {
                 ClientJobsScreen()
             }
 
-            // ✅ Profile Screen
+            // Profile Screen
             composable(ClientScreen.Profile.route) {
                 ClientProfileScreen(
                     viewModel = profileViewModel,
@@ -94,7 +109,7 @@ fun ClientDashboard(loggedInUserId: String) {
                 )
             }
 
-            // ✅ Privacy Settings
+            // Privacy Settings
             composable(ClientScreen.PrivacySettings.route) {
                 PrivacySettingsScreen(
                     viewModel = profileViewModel,
@@ -102,7 +117,7 @@ fun ClientDashboard(loggedInUserId: String) {
                 )
             }
 
-            // ✅ 📩 Messages Screen
+            // Individual Messages Screen
             composable(
                 "client_messages/{senderId}/{receiverId}",
                 arguments = listOf(
@@ -114,10 +129,11 @@ fun ClientDashboard(loggedInUserId: String) {
                 val receiverId = backStackEntry.arguments?.getString("receiverId") ?: ""
 
                 MessagesScreen(
-                    senderId = senderId,  // ✅ Add senderId
+                    senderId = senderId,
                     receiverId = receiverId,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
-
-        }}}
+        }
+    }
+}
