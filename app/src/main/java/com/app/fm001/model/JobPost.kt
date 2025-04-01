@@ -5,11 +5,11 @@ data class JobPost(
     val id: String,
     val title: String,
     val description: String,
-    val budget: Double, // Change from Int to Double
+    val budget: Double,
     val location: String,
     val eventDate: Date,
-    val eventType: EventType, // Use EventType enum
-    val postedBy: String, // Add this field
+    val eventType: EventType,
+    val postedBy: String,
     val postedDate: Date,
     val clientId: String,
     val clientName: String,
@@ -17,6 +17,6 @@ data class JobPost(
     val status: Status
 ) {
     enum class Status {
-        OPEN, IN_PROGRESS, COMPLETED, CANCELLED
+        OPEN, IN_PROGRESS, COMPLETED, CANCELLED, PENDING
     }
 }

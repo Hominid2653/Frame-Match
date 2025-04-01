@@ -19,48 +19,87 @@ import com.app.fm001.ui.screens.client.dashboard.components.CreateJobDialog
 import java.text.SimpleDateFormat
 import java.util.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClientJobsScreen(
     viewModel: ClientJobsViewModel = viewModel()
 ) {
     var showCreateJobDialog by remember { mutableStateOf(false) }
     val myJobs by viewModel.myJobs.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
 
-    // Fetch jobs when the screen is launched
     LaunchedEffect(Unit) {
         viewModel.fetchJobs()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "My Jobs",
-                style = MaterialTheme.typography.headlineLarge
-            )
+    Scaffold(
+        floatingActionButton = {
             FloatingActionButton(
                 onClick = { showCreateJobDialog = true }
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Create Job")
             }
         }
-
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) { padding ->
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(top = 16.dp)
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
         ) {
-            items(myJobs) { job ->
-                JobCard(job = job)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "My Jobs",
+                    style = MaterialTheme.typography.headlineLarge
+                )
+            }
+
+            when {
+                isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+                error != null -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = error!!,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+                myJobs.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("No jobs found")
+                    }
+                }
+                else -> {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .padding(top = 16.dp)
+                    ) {
+                        items(myJobs) { job ->
+                            JobCard(job = job)
+                        }
+                    }
+                }
             }
         }
     }
@@ -114,6 +153,7 @@ private fun JobCard(job: JobPost) {
                             JobPost.Status.IN_PROGRESS -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
                             JobPost.Status.COMPLETED -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f)
                             JobPost.Status.CANCELLED -> MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+                            JobPost.Status.PENDING -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f)
                         }
                     )
                 )
@@ -152,7 +192,7 @@ private fun JobCard(job: JobPost) {
             )
 
             Text(
-                text = "Posted By: ${job.postedBy}", // Display the postedBy field
+                text = "Posted By: ${job.postedBy}",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 8.dp)
             )

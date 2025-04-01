@@ -82,13 +82,15 @@ private fun PhotographerDashboardContent(
             }
             composable(PhotographerScreen.Bids.route) {
                 BidsScreen(
-                    loggedInUserId = loggedInUserId,
-                    loggedInUserEmail = loggedInUserEmail, // Now correctly passed
-                    onNavigateToMessages = { photographerEmail, clientEmail ->
-                        navController.navigate("messages/$photographerEmail/$clientEmail")
+                    loggedInUserId = loggedInUserId, // Pass correct user ID
+                    loggedInUserEmail = loggedInUserEmail, // Pass correct user email
+                    onNavigateToMessages = { receiverId, receiverEmail ->
+                        // Correct navigation for messages
+                        navController.navigate("messages/$loggedInUserId/$receiverId")
                     }
                 )
             }
+
             composable(PhotographerScreen.Post.route) {
                 PostScreen()
             }

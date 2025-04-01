@@ -5,16 +5,17 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.app.fm001.model.Conversation
 import com.app.fm001.model.JobProposal
+import com.app.fm001.model.Message
 import com.app.fm001.model.ProposalStatus
 import com.app.fm001.ui.screens.photographer.dashboard.JobViewModel
 import com.app.fm001.ui.screens.photographer.dashboard.components.JobProposalCard
@@ -23,19 +24,22 @@ import java.util.Locale
 
 @Composable
 fun BidsScreen(
-    loggedInUserId: String, // Logged-in photographer's ID
-    loggedInUserEmail: String, // Logged-in photographer's Email
-    viewModel: JobViewModel = viewModel(),
-    onNavigateToMessages: (String, String) -> Unit // Callback to navigate to the message screen
+    loggedInUserId: String,
+    loggedInUserEmail: String,
+    jobViewModel: JobViewModel = viewModel(),
+    messagesViewModel: MessagesViewModel = viewModel(),
+    onNavigateToMessages: (String, String) -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Active Bids", "Completed", "Messages") // Renamed "Cancelled" to "Messages"
+    val tabs = listOf("Active Bids", "Completed", "Messages")
 
     LaunchedEffect(Unit) {
-        viewModel.fetchProposals()
+        jobViewModel.fetchProposals()
+        messagesViewModel.fetchAllConversations()
     }
 
-    val proposals by viewModel.proposals.collectAsState()
+    val proposals by jobViewModel.proposals.collectAsState()
+    val conversations by messagesViewModel.conversations.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScrollableTabRow(
@@ -57,60 +61,20 @@ fun BidsScreen(
                 .padding(16.dp)
         ) {
             when (selectedTab) {
-                0 -> ActiveBids(proposals.filter { it.status == ProposalStatus.IN_PROGRESS }, viewModel, onNavigateToMessages)
-                1 -> CompletedBids(proposals.filter { it.status == ProposalStatus.COMPLETED }, onNavigateToMessages)
-                2 -> Messages(loggedInUserId, loggedInUserEmail, onNavigateToMessages) // Pass dynamic email here
-            }
-        }
-    }
-}
-
-@Composable
-private fun ActiveBids(
-    bids: List<JobProposal>,
-    viewModel: JobViewModel,
-    onNavigateToMessages: (String, String) -> Unit
-) {
-    BidsList(bids = bids, viewModel = viewModel, onNavigateToMessages = onNavigateToMessages)
-}
-
-@Composable
-private fun CompletedBids(
-    bids: List<JobProposal>,
-    onNavigateToMessages: (String, String) -> Unit
-) {
-    BidsList(bids = bids, viewModel = null, onNavigateToMessages = onNavigateToMessages)
-}
-
-@Composable
-private fun Messages(
-    loggedInUserId: String, // Logged-in photographer's ID
-    loggedInUserEmail: String, // Logged-in photographer's Email
-    onNavigateToMessages: (String, String) -> Unit // Callback to navigate to the message screen
-) {
-    val viewModel: MessagesViewModel = viewModel()
-    val messages by viewModel.messages.collectAsState()
-
-    val filteredMessages = messages.filter { it.receiverId == loggedInUserId }
-
-    Column {
-        Text(
-            text = "Messages",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(16.dp)
-        )
-
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-        ) {
-            items(filteredMessages) { message ->
-                MessageItem(
-                    senderEmail = message.senderEmail,
-                    lastMessage = message.content,
-                    timestamp = message.timestamp.toString(),
-                    onClick = {
-                        onNavigateToMessages(loggedInUserEmail, message.senderEmail)
+                0 -> ActiveBids(
+                    bids = proposals.filter { it.status == ProposalStatus.IN_PROGRESS },
+                    jobViewModel = jobViewModel,
+                    onNavigateToMessages = onNavigateToMessages
+                )
+                1 -> CompletedBids(
+                    bids = proposals.filter { it.status == ProposalStatus.COMPLETED },
+                    onNavigateToMessages = onNavigateToMessages
+                )
+                2 -> EmailListScreen(
+                    conversations = conversations,
+                    loggedInUserId = loggedInUserId,
+                    onEmailClick = { receiverId, receiverEmail ->
+                        onNavigateToMessages(receiverId, receiverEmail)
                     }
                 )
             }
@@ -119,10 +83,53 @@ private fun Messages(
 }
 
 @Composable
-private fun MessageItem(
-    senderEmail: String,
-    lastMessage: String,
-    timestamp: String,
+private fun EmailListScreen(
+    conversations: List<Message>,
+    loggedInUserId: String,
+    onEmailClick: (String, String) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Text(
+            text = "Messages",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(16.dp)
+        )
+
+        if (conversations.isEmpty()) {
+            Text(
+                text = "No messages yet",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                textAlign = TextAlign.Center
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                items(conversations.distinctBy {
+                    if (it.senderId == loggedInUserId) it.receiverId else it.senderId
+                }) { message ->
+                    val (otherUserId, otherUserEmail) = if (message.senderId == loggedInUserId) {
+                        message.receiverId to message.receiverEmail
+                    } else {
+                        message.senderId to message.senderEmail
+                    }
+
+                    EmailListItem(
+                        email = otherUserEmail,
+                        onClick = { onEmailClick(otherUserId, otherUserEmail) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmailListItem(
+    email: String,
     onClick: () -> Unit
 ) {
     Card(
@@ -139,29 +146,24 @@ private fun MessageItem(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = senderEmail,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    text = lastMessage,
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = email,
+                    style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-
-            Text(
-                text = timestamp,
-                style = MaterialTheme.typography.bodySmall
+            Icon(
+                imageVector = Icons.Default.ArrowForward,
+                contentDescription = "View conversation"
             )
         }
     }
 }
 
 @Composable
-private fun BidsList(
+private fun ActiveBids(
     bids: List<JobProposal>,
-    viewModel: JobViewModel?,
+    jobViewModel: JobViewModel,
     onNavigateToMessages: (String, String) -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
@@ -190,10 +192,31 @@ private fun BidsList(
             bid = selectedBid!!,
             onDismiss = { showDialog = false },
             onConfirm = {
-                viewModel?.updateProposalStatus(selectedBid!!, ProposalStatus.PENDING)
+                jobViewModel.updateProposalStatus(selectedBid!!, ProposalStatus.PENDING)
                 showDialog = false
             }
         )
+    }
+}
+
+@Composable
+private fun CompletedBids(
+    bids: List<JobProposal>,
+    onNavigateToMessages: (String, String) -> Unit
+) {
+    LazyColumn(
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(vertical = 8.dp)
+    ) {
+        items(bids) { bid ->
+            JobProposalCard(
+                proposal = bid,
+                onApplyClick = {},
+                onMessageClick = { clientId ->
+                    onNavigateToMessages(bid.photographerId, clientId)
+                }
+            )
+        }
     }
 }
 
@@ -205,11 +228,11 @@ private fun ConfirmBidActionDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Confirm Action") },
-        text = { Text("Do you want to continue with the bid or cancel it?") },
+        title = { Text("Confirm Bid Action") },
+        text = { Text("Are you sure you want to proceed with this bid?") },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Continue (Pending)")
+                Text("Confirm")
             }
         },
         dismissButton = {
@@ -218,34 +241,4 @@ private fun ConfirmBidActionDialog(
             }
         }
     )
-}
-
-@Composable
-private fun ClientMessageItem(
-    clientName: String,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = clientName,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f)
-            )
-            Icon(
-                imageVector = Icons.Default.ArrowForward,
-                contentDescription = "Navigate to messages"
-            )
-        }
-    }
 }

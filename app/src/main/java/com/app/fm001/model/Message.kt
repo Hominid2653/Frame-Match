@@ -8,7 +8,9 @@ data class Message(
     val senderEmail: String = "",
     val receiverId: String = "",
     val receiverEmail: String = "",
-    val timestamp: Date = Date()  // Ensure timestamp is a Date object
+    val timestamp: Date = Date() , // Ensure timestamp is a Date object
+    val isRead: Boolean = false  // Add this field
+
 )
 
 enum class BidStatus {

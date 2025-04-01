@@ -68,7 +68,7 @@ fun PortfolioScreen(navController: NavController) {
                         val likes = doc.getLong("likes")?.toInt() ?: 0
 
                         likesSum += likes
-                        Post(id, imageBase64, description, likes)
+                        Post(id, imageBase64, description, likes.toString())
                     }
                     totalLikes = likesSum
                 }

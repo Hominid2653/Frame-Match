@@ -19,6 +19,9 @@ class ClientProfileViewModel : ViewModel() {
     private val _profile = MutableStateFlow(getDummyProfile())
     val profile = _profile.asStateFlow()
 
+    val currentUserId: String
+        get() = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+
     private val _selectedTags = MutableStateFlow<Set<EventType>>(_profile.value.preferredTags)
     val selectedTags = _selectedTags.asStateFlow()
 
@@ -171,15 +174,21 @@ class ClientProfileViewModel : ViewModel() {
         )
         updateProfileSettings()
     }
+
+    // In ClientProfileViewModel.kt
+
     fun logout(onLogoutComplete: () -> Unit) {
-        auth.signOut()
+        viewModelScope.launch {
+            try {
+                // Just sign out from Firebase Auth
+                auth.signOut()
 
-        // Clear local state
-        _profile.value = getDummyProfile()
-        _selectedTags.value = emptySet()
-        _settings.value = _profile.value.settings
-
-        // Trigger UI update (navigate to login)
-        onLogoutComplete()
+                // Call the completion callback to trigger navigation
+                onLogoutComplete()
+            } catch (e: Exception) {
+                // Optional: Handle error if needed
+            }
+        }
     }
+
 }

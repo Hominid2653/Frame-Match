@@ -80,10 +80,8 @@ fun PostItem(post: Post) {
 
 data class Post(
     val id: String = "",
-    val userId: String = "",
+    val userId: String = "", // Make sure this exists
     val imageBase64: String = "",
     val description: String = "",
-    val hashtags: List<String> = emptyList(),
-    val likes: Int = 0,
-    val timestamp: Long = 0
+    val likes: Int = 0
 )

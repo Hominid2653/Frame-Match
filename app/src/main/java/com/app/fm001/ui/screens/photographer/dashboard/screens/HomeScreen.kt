@@ -25,7 +25,7 @@ fun HomeScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         JobFeed(
-            proposals = jobs,
+            proposals = jobs.reversed(), // Reverse the list to show latest first
             onApplyClick = { job ->
                 // Handle apply click (e.g., submit a proposal)
                 viewModel.applyForJob(job.id)

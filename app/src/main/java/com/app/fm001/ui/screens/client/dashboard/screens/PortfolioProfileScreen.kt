@@ -6,30 +6,28 @@ import android.util.Base64
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.BrokenImage
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.app.fm001.model.Post
+import com.google.firebase.firestore.Query
+import kotlinx.coroutines.tasks.await
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,248 +35,204 @@ fun PortfolioProfileScreen(navController: NavController, email: String) {
     val context = LocalContext.current
     val db = FirebaseFirestore.getInstance()
 
-    var name by remember { mutableStateOf("No Name") }
-    var bio by remember { mutableStateOf("No Bio") }
-    var profileImage by remember { mutableStateOf<String?>(null) }
+    var name by remember { mutableStateOf(email.substringBefore("@")) }
+    var bio by remember { mutableStateOf("") }
     var userPosts by remember { mutableStateOf(emptyList<Post>()) }
-    var totalLikes by remember { mutableStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
+    var totalLikes by remember { mutableStateOf(0) }
 
     LaunchedEffect(email) {
-        isLoading = true
-        println("Fetching profile for email: $email") // Debugging
+        try {
+            isLoading = true
 
-        // Fetch photographer's profile
-        // Modified profile fetching section
-        db.collection("profiles")
-            .whereEqualTo("email", email.lowercase()) // Case-insensitive match
-            .get()
-            .addOnSuccessListener { documents ->
-                isLoading = false
-                println("FOUND ${documents.size()} PROFILE DOCUMENTS") // Debug
-                documents.forEach { doc ->
-                    println("DOCUMENT DATA: ${doc.data}") // Debug - print all fields
-                }
+            // Fetch user profile
+            val profileSnapshot = db.collection("users")
+                .whereEqualTo("email", email)
+                .limit(1)
+                .get()
+                .await()
 
-                if (!documents.isEmpty) {
-                    val profile = documents.documents[0]
-                    name = profile.getString("name") ?: "No Name"
-                    bio = profile.getString("bio") ?:
-                            profile.getString("description") ?: // Try alternate field name
-                            "No Bio"
-                    profileImage = profile.getString("profileImage") ?:
-                            profile.getString("imageUrl") // Try alternate field name
-
-                    println("PROFILE DATA LOADED: $name, $bio, $profileImage") // Debug
-                } else {
-                    println("PROFILE NOT FOUND FOR EMAIL: $email") // Debug
-                    Toast.makeText(context, "Profile not found", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .addOnFailureListener {
-                isLoading = false
-                println("Failed to fetch profile: ${it.message}") // Debugging
-                Toast.makeText(context, "Failed to fetch profile", Toast.LENGTH_SHORT).show()
+            if (!profileSnapshot.isEmpty) {
+                val profile = profileSnapshot.documents[0]
+                name = profile.getString("name") ?:
+                        profile.getString("username") ?:
+                        email.substringBefore("@")
+                bio = profile.getString("bio") ?: ""
             }
 
-        // Fetch photographer's posts
-        db.collection("posts")
-            .whereEqualTo("email", email) // Filter posts by email
-            .get()
-            .addOnSuccessListener { documents ->
-                isLoading = false
-                println("Post documents: ${documents.size()}") // Debugging
-                var likesSum = 0
-                userPosts = documents.mapNotNull { doc ->
-                    val id = doc.id
-                    val imageBase64 = doc.getString("imageBase64") ?: ""
-                    val description = doc.getString("description") ?: ""
-                    val likes = doc.getLong("likes")?.toInt() ?: 0
+            // Fetch all posts
+            val querySnapshot = db.collection("posts")
+                .whereEqualTo("email", email)
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .get()
+                .await()
 
-                    likesSum += likes
-                    Post(id, imageBase64, description, likes)
-                }
-                totalLikes = likesSum
-                println("Posts fetched: ${userPosts.size}, Total likes: $totalLikes") // Debugging
+            userPosts = querySnapshot.documents.mapNotNull { doc ->
+                Post(
+                    id = doc.id,
+                    imageBase64 = doc.getString("imageBase64") ?: "",
+                    description = doc.getString("description") ?: "",
+                    likes = doc.getLong("likes")?.toInt() ?: 0
+                )
             }
-            .addOnFailureListener {
-                isLoading = false
-                println("Failed to fetch posts: ${it.message}") // Debugging
-                Toast.makeText(context, "Failed to fetch posts", Toast.LENGTH_SHORT).show()
-            }
+
+            // Calculate total likes
+            totalLikes = userPosts.sumOf { it.likes }
+
+        } catch (e: Exception) {
+            Toast.makeText(context, "Error loading portfolio", Toast.LENGTH_SHORT).show()
+            Log.e("PortfolioProfile", "Error: ${e.message}")
+        } finally {
+            isLoading = false
+        }
     }
 
-    // Display loading indicator
-    if (isLoading) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(name) },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
         }
-    } else {
-        // UI for PortfolioProfileScreen
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(padding)
         ) {
             // Profile Header
-            ProfileHeader(
+            ProfileHeaderSection(
                 name = name,
                 bio = bio,
-                profileImage = profileImage
+                postCount = userPosts.size,
+                totalLikes = totalLikes
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Stats Section
-            StatsSection(totalLikes = totalLikes, postCount = userPosts.size)
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Portfolio Grid
-            Text(
-                text = "Your Posts",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (userPosts.isEmpty()) {
-                Text(
-                    text = "No posts found for this photographer.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(16.dp)
-                )
-            } else {
-                PhotoGrid(posts = userPosts)
+            // Content
+            Box(modifier = Modifier.fillMaxSize()) {
+                when {
+                    isLoading -> FullScreenLoader()
+                    userPosts.isEmpty() -> EmptyState()
+                    else -> PhotoGrid(posts = userPosts)
+                }
             }
         }
     }
 }
 
 @Composable
-fun ProfileHeader(
+private fun ProfileHeaderSection(
     name: String,
     bio: String,
-    profileImage: String?
+    postCount: Int,
+    totalLikes: Int,
+    modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        // Profile Image
-        Box(
-            modifier = Modifier
-                .size(120.dp)
-                .clip(CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            if (!profileImage.isNullOrEmpty()) {
-                val imageBitmap = remember { profileImage.toBitmap() }
-                if (imageBitmap != null) {
-                    Image(
-                        bitmap = imageBitmap.asImageBitmap(),
-                        contentDescription = "Profile Image",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = "Default Profile Image",
-                        modifier = Modifier.size(120.dp)
-                    )
-                }
-            } else {
-                Icon(
-                    imageVector = Icons.Default.AccountCircle,
-                    contentDescription = "Default Profile Image",
-                    modifier = Modifier.size(120.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
         // Name
         Text(
             text = name,
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
-
-        Spacer(modifier = Modifier.height(8.dp))
 
         // Bio
-        Text(
-            text = bio,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(vertical = 8.dp)
-        )
-    }
-}
-
-@Composable
-fun StatsSection(totalLikes: Int, postCount: Int) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            StatItem(
-                icon = Icons.Default.PhotoLibrary,
-                value = postCount.toString(),
-                label = "Posts"
-            )
-            StatItem(
-                icon = Icons.Default.Star,
-                value = totalLikes.toString(),
-                label = "Likes"
+        if (bio.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = bio,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
         }
+
+        // Stats Row
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Posts Count
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = postCount.toString(),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Posts",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            // Likes Count
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = "Total likes",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = totalLikes.toString(),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Text(
+                    text = "Likes",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        Divider(
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+            thickness = 1.dp
+        )
     }
 }
 
 @Composable
-fun StatItem(icon: ImageVector, value: String, label: String) {
+private fun FullScreenLoader() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
+    }
+}
+
+@Composable
+private fun EmptyState() {
     Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            modifier = Modifier.size(24.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium
-        )
+        Text("No posts available", style = MaterialTheme.typography.bodyLarge)
     }
 }
 
 @Composable
-fun PhotoGrid(posts: List<Post>) {
+private fun PhotoGrid(posts: List<Post>) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
         contentPadding = PaddingValues(1.dp),
-        modifier = Modifier.height(800.dp) // Make it scrollable within the Column
+        modifier = Modifier.fillMaxSize()
     ) {
         items(posts) { post ->
             PhotoGridItem(post = post)
@@ -287,30 +241,43 @@ fun PhotoGrid(posts: List<Post>) {
 }
 
 @Composable
-fun PhotoGridItem(post: Post) {
+private fun PhotoGridItem(post: Post) {
     Card(
         modifier = Modifier
             .aspectRatio(1f)
-            .padding(1.dp)
+            .padding(1.dp),
+        shape = RoundedCornerShape(4.dp)
     ) {
-        val imageBitmap = remember { post.imageBase64.toBitmap() }
+        val imageBitmap = remember(post.imageBase64) { post.imageBase64.toBitmap() }
         imageBitmap?.let {
             Image(
                 bitmap = it.asImageBitmap(),
-                contentDescription = null,
+                contentDescription = "Post Image",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
+        } ?: Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.BrokenImage, contentDescription = "Failed to load image")
         }
     }
 }
 
-fun String.toBitmap(): Bitmap? {
+private fun String.toBitmap(): Bitmap? {
     return try {
         val decodedBytes = Base64.decode(this, Base64.DEFAULT)
         BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
     } catch (e: Exception) {
-        Log.e("Base64Decode", "Failed to decode Base64", e)
+        Log.e("ImageDecode", "Failed to decode image", e)
         null
     }
 }
+
+data class Post(
+    val id: String = "",
+    val imageBase64: String = "",
+    val description: String = "",
+    val likes: Int = 0
+)

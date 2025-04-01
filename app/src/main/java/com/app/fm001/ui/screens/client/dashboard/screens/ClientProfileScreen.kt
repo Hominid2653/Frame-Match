@@ -6,6 +6,8 @@ import android.util.Base64
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -17,22 +19,35 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import com.app.fm001.model.ClientSettings
 import com.app.fm001.model.EventType
+import com.app.fm001.model.Message
+import com.app.fm001.navigation.Screen
 import com.app.fm001.ui.screens.client.dashboard.ClientProfileViewModel
+import com.app.fm001.ui.screens.shared.messages.MessagesViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClientProfileScreen(
-    viewModel: ClientProfileViewModel,
-    onNavigateToPrivacySettings: () -> Unit
+    navController: NavController,
+    viewModel: ClientProfileViewModel = viewModel(),
+    messagesViewModel: MessagesViewModel = viewModel()
 ) {
     val profile by viewModel.profile.collectAsState()
     val selectedTags by viewModel.selectedTags.collectAsState()
     val settings by viewModel.settings.collectAsState()
+    val conversations by messagesViewModel.conversations.collectAsState()
 
     var showEditProfileDialog by remember { mutableStateOf(false) }
+    var showConversationsDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        messagesViewModel.fetchAllConversations()
+    }
 
     Column(
         modifier = Modifier
@@ -44,7 +59,8 @@ fun ClientProfileScreen(
             name = profile.name,
             bio = profile.bio,
             profileImage = profile.profileImage.orEmpty(),
-            onEditClick = { showEditProfileDialog = true }
+            onEditClick = { showEditProfileDialog = true },
+            onInboxClick = { showConversationsDialog = true }
         )
 
         Divider(modifier = Modifier.padding(vertical = 16.dp))
@@ -70,9 +86,16 @@ fun ClientProfileScreen(
 
         AccountSettingsSection(
             settings = settings,
-            onNavigateToPrivacySettings = onNavigateToPrivacySettings,
+            onNavigateToPrivacySettings = { navController.navigate("privacy_settings") },
             onToggleNotifications = viewModel::updateNotifications,
-            onLogout = viewModel::logout
+            onNavigateToMessages = { showConversationsDialog = true },
+            onNavigateToLogin = {
+                viewModel.logout {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0)
+                    }
+                }
+            }
         )
     }
 
@@ -82,7 +105,22 @@ fun ClientProfileScreen(
             bio = profile.bio,
             profileImage = profile.profileImage.orEmpty(),
             onDismiss = { showEditProfileDialog = false },
-            onSave = viewModel::updateProfile
+            onSave = { name, bio, image ->
+                viewModel.updateProfile(name, bio, image)
+                showEditProfileDialog = false
+            }
+        )
+    }
+
+    if (showConversationsDialog) {
+        ConversationsDialog(
+            conversations = conversations,
+            currentUserId = viewModel.currentUserId,
+            onConversationClick = { receiverId, receiverEmail ->
+                navController.navigate("client_messages/${viewModel.currentUserId}/$receiverId")
+                showConversationsDialog = false
+            },
+            onDismiss = { showConversationsDialog = false }
         )
     }
 }
@@ -92,37 +130,68 @@ private fun ProfileHeader(
     name: String,
     bio: String,
     profileImage: String,
-    onEditClick: () -> Unit
+    onEditClick: () -> Unit,
+    onInboxClick: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(modifier = Modifier.padding(bottom = 16.dp)) {
-            profileImage.takeIf { it.isNotEmpty() }?.let {
-                decodeBase64ToBitmapProfile(it)?.let { bitmap ->
+            if (profileImage.isNotEmpty()) {
+                decodeBase64ToBitmapProfile(profileImage)?.let { bitmap ->
                     Image(
                         bitmap = bitmap.asImageBitmap(),
                         contentDescription = "Profile picture",
                         modifier = Modifier.size(120.dp).clip(CircleShape)
                     )
-                }
-            } ?: run {
+                } ?: Icon(
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = "Default profile picture",
+                    modifier = Modifier.size(120.dp).clip(CircleShape)
+                )
+            } else {
                 Icon(
                     imageVector = Icons.Default.AccountCircle,
                     contentDescription = "Default profile picture",
                     modifier = Modifier.size(120.dp).clip(CircleShape)
                 )
             }
-            IconButton(
-                onClick = onEditClick,
-                modifier = Modifier.align(Alignment.BottomEnd)
+
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
             ) {
-                Icon(Icons.Default.Edit, "Edit profile")
+                IconButton(
+                    onClick = onEditClick,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(Icons.Default.Edit, "Edit profile")
+                }
             }
         }
+
         Text(text = name, style = MaterialTheme.typography.headlineMedium)
-        Text(text = bio, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+        IconButton(
+            onClick = onInboxClick,
+            modifier = Modifier.size(48.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Email,
+                contentDescription = "Messages",
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        Text(
+            text = bio,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp)
+        )
     }
 }
 
@@ -155,7 +224,8 @@ private fun AccountSettingsSection(
     settings: ClientSettings,
     onNavigateToPrivacySettings: () -> Unit,
     onToggleNotifications: (Boolean) -> Unit,
-    onLogout: () -> Unit
+    onNavigateToMessages: () -> Unit,
+    onNavigateToLogin: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -180,6 +250,13 @@ private fun AccountSettingsSection(
         )
 
         ListItem(
+            headlineContent = { Text("Messages") },
+            leadingContent = { Icon(Icons.Default.Email, null) },
+            trailingContent = { Icon(Icons.Default.ChevronRight, null) },
+            modifier = Modifier.clickable(onClick = onNavigateToMessages)
+        )
+
+        ListItem(
             headlineContent = { Text("Language") },
             leadingContent = { Icon(Icons.Default.Language, null) },
             trailingContent = { Text(settings.language) }
@@ -197,7 +274,7 @@ private fun AccountSettingsSection(
                 headlineColor = MaterialTheme.colorScheme.error,
                 leadingIconColor = MaterialTheme.colorScheme.error
             ),
-            modifier = Modifier.clickable(onClick = onLogout)
+            modifier = Modifier.clickable(onClick = onNavigateToLogin)
         )
     }
 }
@@ -220,15 +297,19 @@ private fun EditProfileDialog(
         title = { Text("Edit Profile") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                profileImage.takeIf { it.isNotEmpty() }?.let {
-                    decodeBase64ToBitmapProfile(it)?.let { bitmap ->
+                if (profileImage.isNotEmpty()) {
+                    decodeBase64ToBitmapProfile(profileImage)?.let { bitmap ->
                         Image(
                             bitmap = bitmap.asImageBitmap(),
                             contentDescription = "Profile picture",
                             modifier = Modifier.size(120.dp).clip(CircleShape)
                         )
-                    }
-                } ?: run {
+                    } ?: Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "Default profile picture",
+                        modifier = Modifier.size(120.dp).clip(CircleShape)
+                    )
+                } else {
                     Icon(
                         imageVector = Icons.Default.AccountCircle,
                         contentDescription = "Default profile picture",
@@ -251,7 +332,9 @@ private fun EditProfileDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(updatedName, updatedBio, updatedProfileImage) }) {
+            TextButton(onClick = {
+                onSave(updatedName, updatedBio, updatedProfileImage)
+            }) {
                 Text("Save")
             }
         },
@@ -261,8 +344,55 @@ private fun EditProfileDialog(
     )
 }
 
+@Composable
+private fun ConversationsDialog(
+    conversations: List<Message>,
+    currentUserId: String,
+    onConversationClick: (String, String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Your Conversations") },
+        text = {
+            if (conversations.isEmpty()) {
+                Text("No conversations yet", modifier = Modifier.padding(16.dp))
+            } else {
+                LazyColumn {
+                    items(conversations.distinctBy {
+                        if (it.senderId == currentUserId) it.receiverId else it.senderId
+                    }) { message ->
+                        val (otherUserId, otherUserEmail) = if (message.senderId == currentUserId) {
+                            message.receiverId to message.receiverEmail
+                        } else {
+                            message.senderId to message.senderEmail
+                        }
 
-fun decodeBase64ToBitmapProfile(base64Str: String): Bitmap? {
+                        ListItem(
+                            headlineContent = { Text(otherUserEmail) },
+                            supportingContent = {
+                                Text(
+                                    message.content,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            },
+                            modifier = Modifier.clickable {
+                                onConversationClick(otherUserId, otherUserEmail)
+                            }
+                        )
+                        Divider()
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        }
+    )
+}
+
+private fun decodeBase64ToBitmapProfile(base64Str: String): Bitmap? {
     return try {
         val decodedBytes = Base64.decode(base64Str, Base64.DEFAULT)
         BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)

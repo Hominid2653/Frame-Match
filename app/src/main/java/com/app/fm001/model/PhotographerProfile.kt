@@ -37,7 +37,7 @@ data class Comment(
 )
 data class Post(
     val id: String = "",
+    val userId: String = "", // Make sure this exists
     val imageBase64: String = "",
     val description: String = "",
-    val likes: Int = 0 // Likes as an integer
-)
+    val likes: Int = 0)
